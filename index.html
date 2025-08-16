@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ChordRack — Vintage Analog Harmony Station</title>
+<link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+<link rel="shortcut icon" href="favicon/favicon.ico">
+<link rel="manifest" href="favicon/site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Honk:MORF@15&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="title-section">
+        <h1>ChordRack</h1>
+        <div class="subtitle">Vintage Analog Harmony Station</div>
+      </div>
+    </header>
+
+    <div class="controls">
+      <label>Mode:
+        <select id="modeSelect">
+          <option value="beginner" selected>Beginner (key-locked)</option>
+          <option value="free">Free</option>
+        </select>
+      </label>
+
+      <label>Root:
+        <select id="rootSelect"></select>
+      </label>
+
+      <label>Scale:
+        <select id="scaleSelect"><option value="major">Major</option><option value="minor">Minor</option></select>
+      </label>
+
+      <label>Sound:
+        <select id="soundSelect">
+          <option value="piano">Soft Synth</option>
+          <option value="warm">Warm Pads</option>
+          <option value="bright">Bright Synth</option>
+          <option value="mellow">Mellow Bells</option>
+          <option value="vintage">Vintage Organ</option>
+        </select>
+      </label>
+
+      <label><input type="checkbox" id="legacyChk" checked style="display:none;"> </label>
+
+      <button id="startRecBtn">Start Recording</button>
+      <button id="stopRecBtn" disabled>Stop & Download MIDI</button>
+      <button id="connectMidiBtn">(Optional) Connect WebMIDI</button>
+    </div>
+
+    <!-- Synthesis Controls Panel -->
+    <div class="synth-controls-panel">
+      <div class="synth-header" onclick="toggleSynthControls()">
+        <h3>Sound Design</h3>
+        <span class="dropdown-arrow" id="synthDropdownArrow">▼</span>
+      </div>
+      <div class="sliders-container collapsed" id="synthControlsContent">
+        <!-- Wave Type Selector -->
+        <div class="control-column wave-column">
+          <label class="control-label">WAVE</label>
+          <select id="waveType" class="wave-select">
+            <option value="sine">Sine</option>
+            <option value="triangle">Triangle</option>
+            <option value="sawtooth">Saw</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
+        
+        <!-- ADSR Controls -->
+        <div class="control-column">
+          <label class="control-label">A</label>
+          <div class="value-display" id="attackValue">20</div>
+          <input type="range" id="attackSlider" class="vertical-slider" min="0" max="2000" value="20" step="10">
+        </div>
+        
+        <div class="control-column">
+          <label class="control-label">D</label>
+          <div class="value-display" id="decayValue">100</div>
+          <input type="range" id="decaySlider" class="vertical-slider" min="0" max="2000" value="100" step="10">
+        </div>
+        
+        <div class="control-column">
+          <label class="control-label">S</label>
+          <div class="value-display" id="sustainValue">70</div>
+          <input type="range" id="sustainSlider" class="vertical-slider" min="0" max="100" value="70" step="1">
+        </div>
+        
+        <div class="control-column">
+          <label class="control-label">R</label>
+          <div class="value-display" id="releaseValue">150</div>
+          <input type="range" id="releaseSlider" class="vertical-slider" min="0" max="3000" value="150" step="10">
+        </div>
+        
+        <!-- Additional Controls -->
+        <div class="control-column">
+          <label class="control-label">DETUNE</label>
+          <div class="value-display" id="detuneValue">0</div>
+          <input type="range" id="detuneSlider" class="vertical-slider" min="-50" max="50" value="0" step="1">
+        </div>
+        
+        <div class="control-column">
+          <label class="control-label">GAIN</label>
+          <div class="value-display" id="gainValue">50</div>
+          <input type="range" id="gainSlider" class="vertical-slider" min="0" max="100" value="50" step="1">
+        </div>
+        
+        <div class="control-column">
+          <label class="control-label">MIX</label>
+          <div class="value-display" id="mixValue">50</div>
+          <input type="range" id="mixSlider" class="vertical-slider" min="0" max="100" value="50" step="1">
+        </div>
+        
+        <!-- Reset Button -->
+        <div class="control-column reset-column">
+          <button id="resetSynthBtn" class="reset-button">RESET</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="left">
+        <canvas id="wheel" width="360" height="360"></canvas>
+        <div class="muted" style="margin-top:8px">Professional chord wheel processor. Colors: tonic=orange, 3rd=amber, 5th=green.</div>
+      </div>
+
+      <div id="right">
+        <!-- Compact LED Status Panel -->
+        <div class="status-panel">
+          <div class="status-indicator">
+            <div id="gpLed" class="led-large"></div>
+            <div class="led-label">Gamepad</div>
+          </div>
+          <div class="status-indicator">
+            <div id="mLed" class="led-large"></div>
+            <div class="led-label">MIDI Out</div>
+          </div>
+          <div class="status-indicator">
+            <div id="recLed" class="led-large"></div>
+            <div class="led-label">Recording</div>
+          </div>
+        </div>
+        
+        <!-- Vintage equipment power indicator -->
+        <div style="font-size:10px;color:#666;text-align:center;margin:8px 0;font-family:'Courier New',monospace;">
+          ⚡ POWER ON • 115/230V ~ 50/60Hz
+        </div>
+        
+        <div id="chordName">-</div>
+        
+        <div id="status" class="muted">Status: waiting for gamepad</div>
+        <div class="muted">Tip: Hold <strong>RT</strong> button to play chords, <strong>LB</strong> for 7th, <strong>LT</strong> for 9th. <strong>A</strong> = octave up, <strong>B</strong> = octave down. Move stick to explore harmonies.</div>
+        <div class="debug" id="debug"></div>
+      </div>
+    </div>
+
+    <footer>Professional analog-style chord processor. Connect your gamepad for authentic vintage studio experience.</footer>
+  </div>
+
+<script src="app.js"></script>
+
+<!-- Iframe resizer for gamepad tester -->
+<script src="https://cdn.jsdelivr.net/npm/@iframe-resizer/parent@5.0.2"></script>
+<script>
+  try {
+    iframeResize({ license: 'GPLv3' });
+  } catch(e) {
+    // iframe resizer not critical, continue if it fails
+  }
+</script>
+
+</body>
+</html>
