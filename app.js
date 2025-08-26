@@ -32,6 +32,17 @@ const debugEl = document.getElementById('debug');
 const wheel = document.getElementById('wheel');
 const wctx = wheel.getContext('2d');
 
+// Mouse and keyboard state
+let mouseX = 0, mouseY = 0;
+let mouseDown = false;
+let keyboardState = {
+  space: false,  // RT (play chords)
+  shift: false,  // LB (7th)
+  ctrl: false,   // LT (9th) 
+  x: false,      // A (octave up)
+  z: false       // B (octave down)
+};
+
 // Synth control refs
 const waveType = document.getElementById('waveType');
 const attackSlider = document.getElementById('attackSlider');
@@ -140,6 +151,84 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Sound design panel is already collapsed in HTML
   // Arrow starts as ▼ (down) when collapsed - no rotation needed
+});
+
+// Mouse and keyboard event listeners
+document.addEventListener('DOMContentLoaded', () => {
+  // Mouse events for the wheel canvas
+  wheel.addEventListener('mousemove', (e) => {
+    const rect = wheel.getBoundingClientRect();
+    const centerX = wheel.width / 2;
+    const centerY = wheel.height / 2;
+    
+    // Convert mouse position to canvas coordinates
+    mouseX = ((e.clientX - rect.left) / rect.width) * wheel.width - centerX;
+    mouseY = ((e.clientY - rect.top) / rect.height) * wheel.height - centerY;
+    
+    // Normalize to gamepad-like coordinates (-1 to 1)
+    mouseX = mouseX / (wheel.width / 2);
+    mouseY = mouseY / (wheel.height / 2);
+  });
+  
+  wheel.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    mouseDown = true;
+  });
+  
+  wheel.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    mouseDown = false;
+  });
+  
+  wheel.addEventListener('mouseleave', () => {
+    mouseDown = false;
+  });
+  
+  // Keyboard events
+  document.addEventListener('keydown', (e) => {
+    switch(e.code) {
+      case 'Space':
+        e.preventDefault();
+        keyboardState.space = true;
+        break;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        keyboardState.shift = true;
+        break;
+      case 'ControlLeft':
+      case 'ControlRight':
+        keyboardState.ctrl = true;
+        break;
+      case 'KeyX':
+        keyboardState.x = true;
+        break;
+      case 'KeyZ':
+        keyboardState.z = true;
+        break;
+    }
+  });
+  
+  document.addEventListener('keyup', (e) => {
+    switch(e.code) {
+      case 'Space':
+        keyboardState.space = false;
+        break;
+      case 'ShiftLeft':
+      case 'ShiftRight':
+        keyboardState.shift = false;
+        break;
+      case 'ControlLeft':
+      case 'ControlRight':
+        keyboardState.ctrl = false;
+        break;
+      case 'KeyX':
+        keyboardState.x = false;
+        break;
+      case 'KeyZ':
+        keyboardState.z = false;
+        break;
+    }
+  });
 });
 
 // Toggle sound design controls visibility
@@ -695,19 +784,63 @@ function buildFreePCs(rootPC, flavor){ const ints = FREE_CHORDS[flavor] || FREE_
 // main poll loop
 function poll(){
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
-  if(!pads) { requestAnimationFrame(poll); return; }
-  if(gpIndex === null){ for(let i=0;i<pads.length;i++){ if(pads[i]){ gpIndex = i; gpLed.classList.add('on'); statusEl.textContent = 'Gamepad connected'; break; } } }
-  const gp = pads[gpIndex];
-  if(!gp){ requestAnimationFrame(poll); return; }
-
-  // read axes using legacy or calibrated (but we default to legacy)
-  const legacy = legacyChk.checked;
-  let rawX=0, rawY=0, adjX=0, adjY=0;
-  if(legacy){
-    const r = readLegacy(gp); rawX = r.rawX; rawY = r.rawY; adjX = r.adjX; adjY = r.adjY;
+  let usingGamepad = false;
+  let gp = null;
+  
+  // Check for gamepad first
+  if(pads && gpIndex === null){ 
+    for(let i=0;i<pads.length;i++){ 
+      if(pads[i]){ 
+        gpIndex = i; 
+        gpLed.classList.add('on'); 
+        statusEl.textContent = 'Gamepad connected'; 
+        break; 
+      } 
+    } 
+  }
+  
+  gp = pads[gpIndex];
+  if(gp){
+    usingGamepad = true;
   } else {
-    // fallback: calibrated axes (if implemented). for now use same legacy mapping if not calibrated.
-    const r = readLegacy(gp); rawX = r.rawX; rawY = r.rawY; adjX = r.adjX; adjY = r.adjY;
+    // No gamepad, use mouse/keyboard
+    gpLed.classList.remove('on');
+    if(gpIndex !== null) {
+      statusEl.textContent = 'Using mouse + keyboard';
+      gpIndex = null; // Reset gamepad index
+    }
+  }
+
+  // Get input values (either from gamepad or mouse/keyboard)
+  let rawX=0, rawY=0, adjX=0, adjY=0;
+  let hold = false, add7th = false, add9th = false, octaveUp = false, octaveDown = false;
+  
+  if(usingGamepad) {
+    // read axes using legacy or calibrated (but we default to legacy)
+    const legacy = legacyChk.checked;
+    if(legacy){
+      const r = readLegacy(gp); rawX = r.rawX; rawY = r.rawY; adjX = r.adjX; adjY = r.adjY;
+    } else {
+      // fallback: calibrated axes (if implemented). for now use same legacy mapping if not calibrated.
+      const r = readLegacy(gp); rawX = r.rawX; rawY = r.rawY; adjX = r.adjX; adjY = r.adjY;
+    }
+    
+    // Get button states from gamepad
+    hold = !!(gp.buttons[7] && gp.buttons[7].pressed);
+    add7th = !!(gp.buttons[4] && gp.buttons[4].pressed);
+    add9th = !!(gp.buttons[6] && gp.buttons[6].pressed);
+    octaveUp = !!(gp.buttons[0] && gp.buttons[0].pressed);
+    octaveDown = !!(gp.buttons[1] && gp.buttons[1].pressed);
+  } else {
+    // Use mouse position and keyboard buttons
+    rawX = mouseX; rawY = mouseY; adjX = mouseX; adjY = mouseY;
+    
+    // Get button states from keyboard
+    hold = mouseDown || keyboardState.space;
+    add7th = keyboardState.shift;
+    add9th = keyboardState.ctrl;
+    octaveUp = keyboardState.x;
+    octaveDown = keyboardState.z;
   }
 
   const mag = Math.hypot(adjX, adjY);
@@ -737,11 +870,6 @@ function poll(){
       
       chordNameEl.textContent = NOTE_NAMES[scale[degree]] + ' ' + chordType;
       statusEl.textContent = `Degree:${degree} Type:${chordType}`;
-      const hold = !!(gp.buttons[7] && gp.buttons[7].pressed);
-      const add7th = !!(gp.buttons[4] && gp.buttons[4].pressed); // LB button
-      const add9th = !!(gp.buttons[6] && gp.buttons[6].pressed); // LT button
-      const octaveUp = !!(gp.buttons[0] && gp.buttons[0].pressed); // A button
-      const octaveDown = !!(gp.buttons[1] && gp.buttons[1].pressed); // B button
       
       // Calculate octave shift
       let octaveShift = 0;
@@ -798,9 +926,11 @@ function poll(){
       }
     }
   } else { // free mode
-    // root override via buttons (0..11)
+    // root override via buttons (0..11) - only for gamepad
     let rootIdx = parseInt(rootSelect.value,10);
-    for(let i=0;i<Math.min(gp.buttons.length,12); i++){ if(gp.buttons[i].pressed){ rootIdx = i; rootSelect.value = i; break; } }
+    if(usingGamepad) {
+      for(let i=0;i<Math.min(gp.buttons.length,12); i++){ if(gp.buttons[i].pressed){ rootIdx = i; rootSelect.value = i; break; } }
+    }
     const rootPC = rootIdx % 12;
     if(mag < DEADZONE){
       drawWheel(getScale(rootIdx,'major'), -1, []);
@@ -811,9 +941,7 @@ function poll(){
       const chordKey = mapFreeFirst(adjX, adjY);
       const pcs = buildFreePCs(rootPC, chordKey);
       
-      // Check for octave buttons in free mode too
-      const octaveUp = !!(gp.buttons[0] && gp.buttons[0].pressed); // A button
-      const octaveDown = !!(gp.buttons[1] && gp.buttons[1].pressed); // B button
+      // Calculate octave shift (using unified variables)
       let octaveShift = 0;
       if (octaveUp) octaveShift += 1;
       if (octaveDown) octaveShift -= 1;
@@ -830,7 +958,6 @@ function poll(){
       if (octaveShift < 0) chordName += ` (${octaveShift} oct)`;
       chordNameEl.textContent = chordName;
       drawWheel(getScale(rootIdx,'major'), 0, pcs.slice(0,3));
-      const hold = !!(gp.buttons[7] && gp.buttons[7].pressed);
       if(hold){
         if(!playing){ startVoices(midis); recordOn(midis); playing=true; lastPlayed=midis.slice(); }
         else { morphVoices(midis); lastPlayed=midis.slice(); }
@@ -841,7 +968,7 @@ function poll(){
   }
 
   // debug output
-  debugEl.textContent = `rawX:${rawX.toFixed(2)} rawY:${rawY.toFixed(2)} adjX:${adjX.toFixed(2)} adjY:${adjY.toFixed(2)} hold:${!!(gp.buttons[7] && gp.buttons[7].pressed)}`;
+  debugEl.textContent = `rawX:${rawX.toFixed(2)} rawY:${rawY.toFixed(2)} adjX:${adjX.toFixed(2)} adjY:${adjY.toFixed(2)} hold:${hold} input:${usingGamepad ? 'gamepad' : 'mouse+kb'}`;
   requestAnimationFrame(poll);
 }
 requestAnimationFrame(poll);
