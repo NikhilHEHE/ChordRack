@@ -301,7 +301,21 @@ const SOUND_PRESETS = {
 
 // Enhanced synthesis engine with custom controls
 function startVoices(midiNotes){
-  ensureAudio(); stopVoices();
+  ensureAudio(); 
+  
+  // If there are active voices, stop them and add a tiny delay for smooth transition
+  if(activeVoices.length > 0) {
+    stopVoices();
+    // Small delay to allow previous notes to begin fading before starting new ones
+    setTimeout(() => {
+      createNewVoices(midiNotes);
+    }, 5); // 5ms delay
+  } else {
+    createNewVoices(midiNotes);
+  }
+}
+
+function createNewVoices(midiNotes) {
   const now = audioCtx.currentTime;
   const params = getCurrentSynthParams();
   
@@ -325,7 +339,7 @@ function startVoices(midiNotes){
     
     osc1.type = params.waveType;
     osc1.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, params.detune/1200), now);
-    gain1.gain.setValueAtTime(0.0001, now);
+    gain1.gain.setValueAtTime(0.000001, now); // Much lower starting value
     
     osc1.connect(gain1);
     gain1.connect(audioCtx.destination);
@@ -350,7 +364,7 @@ function startVoices(midiNotes){
       const layer2Wave = params.waveType === 'sine' ? 'triangle' : 'sine';
       osc2.type = layer2Wave;
       osc2.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, (params.detune + 3)/1200), now); // +3 cents detune
-      gain2.gain.setValueAtTime(0.0001, now);
+      gain2.gain.setValueAtTime(0.000001, now); // Much lower starting value
       
       osc2.connect(gain2);
       gain2.connect(audioCtx.destination);
@@ -375,6 +389,7 @@ function startVoices(midiNotes){
     });
   });
 }
+
 function morphVoices(newMidis){
   ensureAudio();
   if(activeVoices.length === newMidis.length){
@@ -408,13 +423,24 @@ function stopVoices(){
     try{
       voice.gains.forEach((gain) => {
         if(gain) {
-          gain.gain.cancelScheduledValues(now); 
-          gain.gain.exponentialRampToValueAtTime(0.0001, now + params.release);
+          gain.gain.cancelScheduledValues(now);
+          // Use a more aggressive exponential fade to prevent clicking
+          gain.gain.setValueAtTime(gain.gain.value, now);
+          gain.gain.exponentialRampToValueAtTime(0.000001, now + Math.max(0.02, params.release));
         }
       });
-      voice.oscillators.forEach((osc) => {
+      voice.oscillators.forEach((osc, index) => {
         if(osc) {
-          osc.stop(now + params.release);
+          // Stop oscillator well after the gain fade completes
+          const stopTime = now + Math.max(0.02, params.release) + 0.1;
+          osc.stop(stopTime);
+          
+          // Disconnect immediately to prevent any residual audio
+          setTimeout(() => {
+            try {
+              osc.disconnect();
+            } catch(e) {}
+          }, (stopTime - now) * 1000);
         }
       });
     } catch(e){}
