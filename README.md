@@ -230,20 +230,4 @@ const synthParams = {
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Inspired by classic analog synthesizers and chord progression theory
-- Built with modern Web Audio API and responsive design principles
-- Special thanks to the music theory and web development communities
-
-## 🔗 Links
-
-- **Live Demo**: [https://yourusername.github.io/chordstack](https://yourusername.github.io/chordstack)
-- **Documentation**: [Wiki](https://github.com/yourusername/chordstack/wiki)
-- **Issues**: [Bug Reports](https://github.com/yourusername/chordstack/issues)
-- **Discussions**: [Feature Requests](https://github.com/yourusername/chordstack/discussions)
-
----
-
 **ChordRack** — Professional analog-style chord processor for the modern musician. 🎵✨
