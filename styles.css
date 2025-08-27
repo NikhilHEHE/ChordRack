@@ -789,6 +789,41 @@ footer{
   padding-top:16px;
   border-top:1px solid #444;
   font-family:Arial,sans-serif;
+  line-height: 1.5;
+}
+
+.github-stars-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid #555;
+  border-radius: 3px;
+  color: #999;
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: normal;
+  transition: all 0.15s ease;
+  opacity: 0.8;
+}
+
+.github-stars-btn:hover {
+  color: #ccc;
+  border-color: #666;
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.github-stars-btn svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s ease;
+}
+
+.github-stars-btn:hover svg {
+  transform: scale(1.1);
 }
 
 /* Audio Initialization Overlay - Hidden by default, shown on mobile via JS */
