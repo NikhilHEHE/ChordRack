@@ -23,6 +23,16 @@
       </div>
     </header>
 
+    <!-- Mobile Audio Initialization Button -->
+    <div id="audioInitOverlay" class="audio-init-overlay" style="display: none;">
+      <div class="audio-init-content">
+        <div class="audio-init-icon">🔊</div>
+        <h3>Initialize Audio</h3>
+        <p>Tap the button below to enable audio for ChordRack</p>
+        <button id="audioInitBtn" class="audio-init-button">Enable Audio</button>
+      </div>
+    </div>
+
     <div class="controls">
       <label>Mode:
         <select id="modeSelect">
@@ -170,7 +180,7 @@
         <div id="status" class="muted">Status: waiting for gamepad</div>
         <div class="muted">Tip: Hold <strong>RT</strong> button to play chords, <strong>LB</strong> for 7th, <strong>LT</strong> for 9th. <strong>A</strong> = octave up, <strong>B</strong> = octave down. Move stick to explore harmonies.</div>
         <div class="muted">Mouse + Keyboard: Click/drag wheel or use <strong>SPACE</strong> to play, <strong>SHIFT</strong> for 7th, <strong>CTRL</strong> for 9th, <strong>X</strong> = octave up, <strong>Z</strong> = octave down.</div>
-        <div class="muted mobile-instructions">Mobile: Tap and hold wheel to play chords. Hold extension buttons for 7th, 9th, and octave controls.</div>
+        <div class="muted mobile-instructions">Mobile: First tap "Enable Audio" when prompted, then tap and hold wheel to play chords. Hold extension buttons for 7th, 9th, and octave controls.</div>
         <div class="debug" id="debug"></div>
       </div>
     </div>

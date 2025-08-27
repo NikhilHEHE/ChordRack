@@ -791,15 +791,263 @@ footer{
   font-family:Arial,sans-serif;
 }
 
+/* Audio Initialization Overlay - Hidden by default, shown on mobile via JS */
+.audio-init-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.3s ease-out;
+  opacity: 1;
+  transform: scale(1);
+  transition: all 0.3s ease-out;
+}
+
+.audio-init-content {
+  background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+  border: 2px solid #555;
+  border-radius: 12px;
+  padding: 24px 20px;
+  text-align: center;
+  max-width: 260px;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+.audio-init-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  animation: pulse 2s infinite;
+}
+
+.audio-init-content h3 {
+  color: #ff6b35;
+  font-size: 20px;
+  margin: 0 0 8px 0;
+  font-weight: bold;
+}
+
+.audio-init-content p {
+  color: #ccc;
+  font-size: 13px;
+  margin: 0 0 20px 0;
+  line-height: 1.4;
+}
+
+.audio-init-button {
+  background: linear-gradient(145deg, #ff6b35, #e55a2b);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 
+    0 4px 12px rgba(255, 107, 53, 0.3),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.audio-init-button:hover {
+  background: linear-gradient(145deg, #ff8c42, #ff6b35);
+  transform: translateY(-1px);
+  box-shadow: 
+    0 6px 16px rgba(255, 107, 53, 0.4),
+    inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+.audio-init-button:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 2px 8px rgba(255, 107, 53, 0.3),
+    inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.1); opacity: 0.8; }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
-  .app{margin:10px;padding:16px}
-  #main{flex-direction:column;align-items:center}
-  #left{width:100%;max-width:380px}
-  #wheel{width:100%;height:auto;aspect-ratio:1}
-  .controls{flex-direction:column;align-items:stretch}
-  h1{font-size:20px}
-  #chordName{font-size:28px}
+  body {
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+  }
+  
+  .app{
+    margin:5px;
+    padding:12px;
+    min-height:calc(100vh - 10px);
+    box-sizing:border-box;
+    overflow:hidden;
+    max-width:calc(100vw - 10px); /* Prevent app from exceeding viewport */
+  }
+  
+  #main{
+    flex-direction:column;
+    align-items:center;
+    gap: 12px; /* Smaller gap on mobile */
+    align-items: stretch; /* Allow items to stretch to full width */
+    min-height: auto; /* Don't constrain height */
+    max-width: 100%; /* Prevent overflow */
+    overflow: hidden; /* Contain children */
+  }
+  
+  #left{
+    width:100%;
+    max-width:calc(100vw - 34px); /* Account for app margins and padding */
+    overflow: hidden;
+  }
+  
+  #wheel{
+    width:100%;
+    height:auto;
+    aspect-ratio:1;
+    max-width: calc(100vw - 34px); /* Prevent canvas overflow */
+  }
+  
+  /* Fix controls container for mobile */
+  .controls{
+    flex-direction:column;
+    align-items:stretch;
+    padding: 8px; /* Reduce padding */
+    margin-bottom: 12px; /* Reduce margin */
+    gap: 6px; /* Smaller gap */
+    width: 100%; /* Full width of parent */
+    max-width: calc(100vw - 34px); /* Account for app margins + padding */
+    box-sizing: border-box; /* Include padding in width */
+    overflow: hidden; /* Prevent overflow */
+  }
+  
+  h1{
+    font-size:18px;
+    margin: 8px 0; /* Reduce margins */
+    text-align: center;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Fix chord name display - prevent overflow */
+  #chordName{
+    font-size:22px; /* Smaller on mobile */
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    text-align: center;
+    padding: 12px 8px; /* Reduce horizontal padding */
+    margin: 0; /* Remove margin */
+    box-sizing: border-box;
+    overflow: hidden; /* Prevent text overflow */
+  }
+  
+  /* Fix buttons for mobile */
+  button {
+    padding: 8px 12px; /* Smaller padding */
+    font-size: 11px; /* Smaller font */
+    width: 100%; /* Full width buttons on mobile */
+    max-width: 100%; /* Ensure they don't exceed container */
+    box-sizing: border-box; /* Include padding in width */
+    text-align: center;
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden; /* Hide overflow text */
+    text-overflow: ellipsis; /* Add ... for long text */
+  }
+  
+  /* Fix select and label elements for mobile */
+  label {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  
+  /* Fix instruction text for mobile */
+  .muted {
+    font-size: 11px; /* Smaller font for mobile */
+    line-height: 1.3; /* Tighter line height */
+    margin-bottom: 8px; /* Add some space between instruction blocks */
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    word-wrap: break-word; /* Allow long words to break */
+    overflow-wrap: break-word; /* Modern browsers */
+  }
+  
+  /* Ensure the right panel has enough space for text */
+  #right {
+    width: 100%;
+    max-width: calc(100vw - 34px); /* Updated constraint to match app sizing */
+    padding: 0 8px; /* Small padding to prevent edge touching */
+    box-sizing: border-box;
+    overflow: visible; /* Allow content to be visible */
+  }
+  
+  /* Fix debug text container - prevent overflow */
+  .debug {
+    font-size: 8px; /* Smaller font */
+    padding: 4px 6px; /* Smaller padding */
+    max-width: calc(100vw - 34px); /* Account for app margins and padding */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    overflow: hidden; /* Prevent text from extending beyond container */
+    box-sizing: border-box;
+    white-space: pre-wrap; /* Allow line breaks */
+    line-height: 1.3; /* Better readability */
+  }
+  
+  /* Fix status panel for mobile - prevent overflow */
+  .status-panel {
+    max-width: calc(100vw - 34px); /* Account for app margins and padding */
+    padding: 6px 4px; /* Smaller padding */
+    gap: 4px; /* Smaller gap */
+    overflow: hidden;
+    box-sizing: border-box;
+    flex-wrap: wrap; /* Allow wrapping if needed */
+    justify-content: space-evenly; /* Better distribution */
+  }
+  
+  .status-indicator {
+    flex: 1; /* Allow equal distribution */
+    min-width: 60px; /* Minimum size for readability */
+    max-width: 80px; /* Prevent too wide */
+    text-align: center;
+    box-sizing: border-box;
+  }
+  
+  .led-label {
+    font-size: 8px; /* Smaller labels */
+    word-wrap: break-word;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
   
   /* Fix sound design panel for mobile */
   .sliders-container {
@@ -934,5 +1182,17 @@ footer{
   /* Show mobile instructions on mobile */
   .mobile-instructions {
     display: block;
+  }
+  
+  /* Fix footer overflow */
+  footer {
+    margin-top: 16px; /* Smaller margin */
+    padding-top: 12px;
+    font-size: 10px; /* Smaller font */
+    max-width: calc(100vw - 34px); /* Prevent overflow */
+    overflow: hidden;
+    text-align: center;
+    box-sizing: border-box;
+    word-wrap: break-word;
   }
 }

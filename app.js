@@ -153,6 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initSynthControls();
   loadPresetToControls('piano');
   
+  // Set initial status message for mobile users
+  statusEl.textContent = 'Tap wheel to enable audio and play chords';
+  
   // Initial wheel draw after a short delay to ensure canvas is ready
   setTimeout(() => {
     drawWheel(getScale(parseInt(rootSelect.value,10),'major'), -1, []);
@@ -160,6 +163,43 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Sound design panel is already collapsed in HTML
   // Arrow starts as ▼ (down) when collapsed - no rotation needed
+  
+  // Mobile audio initialization overlay
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   ('ontouchstart' in window) || 
+                   (navigator.maxTouchPoints > 0);
+  
+  if (isMobile) {
+    const audioInitOverlay = document.getElementById('audioInitOverlay');
+    const audioInitBtn = document.getElementById('audioInitBtn');
+    
+    // Show the overlay on mobile
+    audioInitOverlay.style.display = 'flex';
+    
+    // Handle audio initialization button click
+    audioInitBtn.addEventListener('click', async () => {
+      try {
+        // Initialize audio immediately
+        await initAudioOnUserGesture();
+        
+        // Hide the overlay with a nice fade out
+        audioInitOverlay.style.opacity = '0';
+        audioInitOverlay.style.transform = 'scale(0.9)';
+        
+        setTimeout(() => {
+          audioInitOverlay.style.display = 'none';
+        }, 300);
+        
+        // Update status message
+        statusEl.textContent = 'Audio ready! Tap wheel to play chords';
+        
+      } catch (error) {
+        console.error('Failed to initialize audio:', error);
+        audioInitBtn.textContent = 'Try Again';
+        audioInitBtn.style.background = 'linear-gradient(145deg, #ff4444, #cc3333)';
+      }
+    });
+  }
 });
 
 // Mouse and keyboard event listeners
@@ -187,6 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
   wheel.addEventListener('mousedown', (e) => {
     e.preventDefault();
     mouseDown = true;
+    
+    // Initialize audio on first click (simple)
+    if (!audioInitialized) {
+      initAudioOnUserGesture();
+    }
   });
   
   wheel.addEventListener('mouseup', (e) => {
@@ -201,10 +246,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Touch events for mobile devices
   wheel.addEventListener('touchstart', (e) => {
     e.preventDefault(); // Prevent scrolling and other touch behaviors
+    
     if (e.touches.length > 0) {
       const touch = e.touches[0];
       updatePosition(touch.clientX, touch.clientY);
       touchDown = true;
+      
+      // Initialize audio on first touch if needed
+      if (!audioInitialized) {
+        initAudioOnUserGesture();
+      }
     }
   });
   
@@ -219,11 +270,25 @@ document.addEventListener('DOMContentLoaded', () => {
   wheel.addEventListener('touchend', (e) => {
     e.preventDefault();
     touchDown = false;
+    
+    // Force stop any playing voices immediately on touch end
+    if (playing) {
+      stopVoices();
+      playing = false;
+      lastPlayed = [];
+    }
   });
   
   wheel.addEventListener('touchcancel', (e) => {
     e.preventDefault();
     touchDown = false;
+    
+    // Force stop any playing voices immediately on touch cancel
+    if (playing) {
+      stopVoices();
+      playing = false;
+      lastPlayed = [];
+    }
   });
   
   // Mobile button controls
@@ -236,6 +301,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function handleMobileButtonStart(stateKey, button) {
     mobileState[stateKey] = true;
     button.classList.add('active');
+    
+    // Initialize audio on first mobile button touch (simple)
+    if (!audioInitialized) {
+      initAudioOnUserGesture();
+    }
   }
   
   function handleMobileButtonEnd(stateKey, button) {
@@ -427,7 +497,80 @@ console.log('Status element found:', statusEl);
 
 // ---------- Audio / synth ----------
 let audioCtx = null;
-function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+let audioInitialized = false;
+let audioInitializing = false; // Prevent multiple simultaneous initialization attempts
+let masterGain = null; // Add master volume control for safety
+let voiceCreationInProgress = false; // Prevent overlapping voice creation
+
+function ensureAudio(){ 
+  if(!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      console.log('AudioContext created, state:', audioCtx.state);
+      
+      // Create master gain node for safety
+      if(!masterGain) {
+        masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(4, audioCtx.currentTime); // User's preferred volume level
+        masterGain.connect(audioCtx.destination);
+      }
+    } catch (err) {
+      console.error('Failed to create AudioContext:', err);
+      throw err; // Re-throw so caller can handle
+    }
+  }
+  
+  // Don't try to resume here - let the caller handle it
+  console.log('ensureAudio completed, audioCtx state:', audioCtx?.state);
+}
+
+// Function to initialize audio on first user interaction
+function initAudioOnUserGesture() {
+  if (!audioInitialized && !audioInitializing) {
+    audioInitializing = true;
+    console.log('Initializing audio on user gesture...');
+    
+    try {
+      ensureAudio();
+      
+      if (audioCtx && audioCtx.state === 'suspended') {
+        console.log('Audio context suspended, attempting to resume...');
+        
+        // Set a definite timeout to reset flag - this WILL fire regardless
+        setTimeout(() => {
+          if (audioInitializing) {
+            console.log('Audio initialization timeout - resetting flag');
+            audioInitializing = false;
+          }
+        }, 500); // Short timeout
+        
+        audioCtx.resume().then(() => {
+          audioInitialized = true;
+          audioInitializing = false;
+          console.log('Audio initialized and resumed successfully');
+          statusEl.textContent = 'Audio ready - continue playing!';
+        }).catch(err => {
+          audioInitializing = false;
+          console.error('Audio initialization failed:', err);
+          statusEl.textContent = 'Audio initialization failed - try refreshing';
+        });
+      } else if (audioCtx && audioCtx.state === 'running') {
+        audioInitialized = true;
+        audioInitializing = false;
+        console.log('Audio context already running');
+        statusEl.textContent = 'Audio ready - play chords!';
+      } else {
+        audioInitializing = false;
+        console.error('Audio context in unexpected state:', audioCtx?.state);
+        statusEl.textContent = 'Audio context creation failed';
+      }
+    } catch (err) {
+      audioInitializing = false;
+      console.error('Failed to create audio context:', err);
+      statusEl.textContent = 'Audio initialization failed - try refreshing';
+    }
+  }
+}
 let activeVoices = [];  // {osc,gain, midi}
 function noteToFreq(m){ return 440 * Math.pow(2,(m-69)/12); }
 function midiFromPC(pc, octave=BASE_OCTAVE){ return 12*octave + (pc % 12); }
@@ -437,8 +580,8 @@ const SOUND_PRESETS = {
   piano: {
     name: 'Soft Synth',
     layers: [
-      { type: 'triangle', detune: 0, gain: 0.15, attack: 0.02, release: 0.4 },
-      { type: 'sine', detune: 3, gain: 0.08, attack: 0.05, release: 0.6 }
+      { type: 'triangle', detune: 0, gain: 0.15, attack: 0.02, release: 0.8 },
+      { type: 'sine', detune: 3, gain: 0.08, attack: 0.05, release: 1.2 }
     ]
   },
   warm: {
@@ -453,9 +596,9 @@ const SOUND_PRESETS = {
   bright: {
     name: 'Bright Synth',
     layers: [
-      { type: 'sawtooth', detune: 0, gain: 0.08, attack: 0.005, release: 0.12 },
-      { type: 'square', detune: 12, gain: 0.04, attack: 0.01, release: 0.08 },
-      { type: 'sawtooth', detune: 7, gain: 0.03, attack: 0.008, release: 0.10 }
+      { type: 'sawtooth', detune: 0, gain: 0.08, attack: 0.005, release: 0.25 },
+      { type: 'square', detune: 12, gain: 0.04, attack: 0.01, release: 0.20 },
+      { type: 'sawtooth', detune: 7, gain: 0.03, attack: 0.008, release: 0.30 }
     ]
   },
   mellow: {
@@ -470,11 +613,11 @@ const SOUND_PRESETS = {
   vintage: {
     name: 'Vintage Organ',
     layers: [
-      { type: 'square', detune: 0, gain: 0.10, attack: 0.001, release: 0.05 },
-      { type: 'square', detune: 12, gain: 0.06, attack: 0.001, release: 0.05 },
-      { type: 'sawtooth', detune: 7, gain: 0.04, attack: 0.002, release: 0.08 },
-      { type: 'square', detune: 19, gain: 0.03, attack: 0.001, release: 0.06 },
-      { type: 'sine', detune: 0, gain: 0.02, attack: 0.001, release: 0.10 }
+      { type: 'square', detune: 0, gain: 0.10, attack: 0.001, release: 0.15 },
+      { type: 'square', detune: 12, gain: 0.06, attack: 0.001, release: 0.15 },
+      { type: 'sawtooth', detune: 7, gain: 0.04, attack: 0.002, release: 0.20 },
+      { type: 'square', detune: 19, gain: 0.03, attack: 0.001, release: 0.18 },
+      { type: 'sine', detune: 0, gain: 0.02, attack: 0.001, release: 0.25 }
     ]
   }
 };
@@ -483,19 +626,41 @@ const SOUND_PRESETS = {
 function startVoices(midiNotes){
   ensureAudio(); 
   
+  // Simple check: if audio context isn't running, just return false (no retries)
+  if (!audioCtx || audioCtx.state !== 'running') {
+    return false;
+  }
+  
   // If there are active voices, stop them and add a tiny delay for smooth transition
   if(activeVoices.length > 0) {
     stopVoices();
-    // Small delay to allow previous notes to begin fading before starting new ones
     setTimeout(() => {
       createNewVoices(midiNotes);
-    }, 5); // 5ms delay
+    }, 5);
   } else {
     createNewVoices(midiNotes);
   }
+  
+  return true; // Successfully started
 }
 
 function createNewVoices(midiNotes) {
+  // Prevent overlapping voice creation
+  if (voiceCreationInProgress) {
+    console.log('Voice creation already in progress, skipping...');
+    return;
+  }
+  
+  // Ensure any previous voices are completely stopped
+  if(activeVoices.length > 0) {
+    stopVoices();
+    // Wait a moment for cleanup
+    setTimeout(() => createNewVoices(midiNotes), 10);
+    return;
+  }
+  
+  voiceCreationInProgress = true;
+  
   const now = audioCtx.currentTime;
   const params = getCurrentSynthParams();
   
@@ -505,58 +670,57 @@ function createNewVoices(midiNotes) {
     const voiceGains = [];
     
     // Calculate octave compensation for volume
-    // Lower octaves need more gain, higher octaves need less
     const octave = Math.floor(m / 12);
     const baseOctave = 5; // BASE_OCTAVE
     const octaveDiff = octave - baseOctave;
-    // Boost lower octaves, reduce higher octaves (clamped to reasonable range)
-    const clampedDiff = Math.max(-2, Math.min(2, octaveDiff)); // Limit to ±2 octaves compensation
+    const clampedDiff = Math.max(-2, Math.min(2, octaveDiff));
     const octaveGainMultiplier = Math.pow(1.4, -clampedDiff);
     
-    // Layer 1 - Main oscillator
+    // Layer 1 - Main oscillator with consistent gain levels
     const osc1 = audioCtx.createOscillator();
     const gain1 = audioCtx.createGain();
     
     osc1.type = params.waveType;
     osc1.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, params.detune/1200), now);
-    gain1.gain.setValueAtTime(0.000001, now); // Much lower starting value
+    
+    // Start from silence
+    gain1.gain.setValueAtTime(0.000001, now);
     
     osc1.connect(gain1);
-    gain1.connect(audioCtx.destination);
+    gain1.connect(masterGain);
     
-    // ADSR Envelope with octave compensation
-    const peakGain = params.gain * octaveGainMultiplier;
-    const sustainLevel = peakGain * params.sustain;
+    // ADSR Envelope with fixed, consistent levels
+    const safePeakGain = Math.min(0.08, params.gain * octaveGainMultiplier * 0.25); // Reduced and fixed
+    const sustainLevel = safePeakGain * params.sustain;
     
-    gain1.gain.linearRampToValueAtTime(peakGain, now + params.attack);
+    gain1.gain.linearRampToValueAtTime(safePeakGain, now + params.attack);
     gain1.gain.linearRampToValueAtTime(sustainLevel, now + params.attack + params.decay);
     
-    osc1.start();
+    osc1.start(now);
     voiceOscillators.push(osc1);
     voiceGains.push(gain1);
     
-    // Layer 2 - Secondary oscillator (if mix > 0)
+    // Layer 2 - Secondary oscillator (if mix > 0) with even safer levels
     if (params.mix > 0) {
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
       
-      // Use complementary waveform for richness
       const layer2Wave = params.waveType === 'sine' ? 'triangle' : 'sine';
       osc2.type = layer2Wave;
-      osc2.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, (params.detune + 3)/1200), now); // +3 cents detune
-      gain2.gain.setValueAtTime(0.000001, now); // Much lower starting value
+      osc2.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, (params.detune + 3)/1200), now);
+      gain2.gain.setValueAtTime(0.000001, now);
       
       osc2.connect(gain2);
-      gain2.connect(audioCtx.destination);
+      gain2.connect(masterGain); // Connect to master gain instead of destination
       
-      // Layer 2 envelope with mix level and octave compensation
-      const peakGain2 = params.gain * params.mix * 0.6 * octaveGainMultiplier;
-      const sustainLevel2 = peakGain2 * params.sustain;
+      // Layer 2 envelope with very conservative levels
+      const safePeakGain2 = Math.min(0.05, safePeakGain * params.mix * 0.4); // Even lower max
+      const sustainLevel2 = safePeakGain2 * params.sustain;
       
-      gain2.gain.linearRampToValueAtTime(peakGain2, now + params.attack);
+      gain2.gain.linearRampToValueAtTime(safePeakGain2, now + params.attack);
       gain2.gain.linearRampToValueAtTime(sustainLevel2, now + params.attack + params.decay);
       
-      osc2.start();
+      osc2.start(now);
       voiceOscillators.push(osc2);
       voiceGains.push(gain2);
     }
@@ -568,6 +732,9 @@ function createNewVoices(midiNotes) {
       params: params
     });
   });
+  
+  // Reset the voice creation flag
+  voiceCreationInProgress = false;
 }
 
 function morphVoices(newMidis){
@@ -599,32 +766,41 @@ function stopVoices(){
   const now = audioCtx.currentTime;
   const params = getCurrentSynthParams();
   
+  // Use proper fade-out to prevent clicking/chopping
   activeVoices.forEach(voice=>{
     try{
       voice.gains.forEach((gain) => {
         if(gain) {
-          gain.gain.cancelScheduledValues(now);
-          // Use a more aggressive exponential fade to prevent clicking
-          gain.gain.setValueAtTime(gain.gain.value, now);
-          gain.gain.exponentialRampToValueAtTime(0.000001, now + Math.max(0.02, params.release));
+          try {
+            // Cancel any scheduled values and start smooth fade
+            gain.gain.cancelScheduledValues(now);
+            gain.gain.setValueAtTime(gain.gain.value, now);
+            // Smooth fade to zero over release time
+            const fadeTime = Math.min(params.release, 0.3); // Cap at 300ms for responsiveness
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + fadeTime);
+          } catch(e) {
+            console.warn('Error fading gain:', e);
+          }
         }
       });
-      voice.oscillators.forEach((osc, index) => {
+      
+      // Schedule oscillator stop after fade completes
+      voice.oscillators.forEach((osc) => {
         if(osc) {
-          // Stop oscillator well after the gain fade completes
-          const stopTime = now + Math.max(0.02, params.release) + 0.1;
-          osc.stop(stopTime);
-          
-          // Disconnect immediately to prevent any residual audio
-          setTimeout(() => {
-            try {
-              osc.disconnect();
-            } catch(e) {}
-          }, (stopTime - now) * 1000);
+          try {
+            const fadeTime = Math.min(params.release, 0.3);
+            osc.stop(now + fadeTime + 0.01); // Small buffer after fade
+          } catch(e) {
+            console.warn('Error stopping oscillator:', e);
+          }
         }
       });
-    } catch(e){}
+    } catch(e){
+      console.warn('Error in stopVoices:', e);
+    }
   });
+  
+  // Clear the array immediately
   activeVoices = [];
 }
 
@@ -1120,7 +1296,18 @@ function poll(){
         drawWheel(scale, degree, highlightPCs);
         
         if(!playing){
-          startVoices(midis); recordOn(midis); playing=true; lastPlayed=midis.slice();
+          // Only prevent starting voices if we're actively initializing audio
+          if (audioInitializing) {
+            console.log('Audio initializing, skipping voice start in poll loop');
+          } else {
+            // Try to start voices, only set playing=true if successful
+            const voicesStarted = startVoices(midis);
+            if (voicesStarted !== false) {
+              recordOn(midis); 
+              playing = true; 
+              lastPlayed = midis.slice();
+            }
+          }
         } else {
           // morph
           morphVoices(midis); lastPlayed=midis.slice();
@@ -1165,7 +1352,14 @@ function poll(){
       chordNameEl.textContent = chordName;
       drawWheel(getScale(rootIdx,'major'), 0, pcs.slice(0,3));
       if(hold){
-        if(!playing){ startVoices(midis); recordOn(midis); playing=true; lastPlayed=midis.slice(); }
+        if(!playing){ 
+          // Only prevent starting voices if we're actively initializing audio
+          if (audioInitializing) {
+            console.log('Audio initializing, skipping voice start in poll loop');
+          } else {
+            startVoices(midis); recordOn(midis); playing=true; lastPlayed=midis.slice(); 
+          }
+        }
         else { morphVoices(midis); lastPlayed=midis.slice(); }
       } else {
         if(playing){ stopVoices(); recordOff(lastPlayed); playing=false; lastPlayed=[]; }
