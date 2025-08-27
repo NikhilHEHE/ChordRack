@@ -32,15 +32,24 @@ const debugEl = document.getElementById('debug');
 const wheel = document.getElementById('wheel');
 const wctx = wheel.getContext('2d');
 
-// Mouse and keyboard state
+// Mouse, touch and keyboard state
 let mouseX = 0, mouseY = 0;
 let mouseDown = false;
+let touchDown = false;
 let keyboardState = {
   space: false,  // RT (play chords)
   shift: false,  // LB (7th)
   ctrl: false,   // LT (9th) 
   x: false,      // A (octave up)
   z: false       // B (octave down)
+};
+
+// Mobile touch button state
+let mobileState = {
+  seventh: false,
+  ninth: false,
+  octaveUp: false,
+  octaveDown: false
 };
 
 // Synth control refs
@@ -155,19 +164,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Mouse and keyboard event listeners
 document.addEventListener('DOMContentLoaded', () => {
-  // Mouse events for the wheel canvas
-  wheel.addEventListener('mousemove', (e) => {
+  // Function to update position from either mouse or touch
+  function updatePosition(clientX, clientY) {
     const rect = wheel.getBoundingClientRect();
     const centerX = wheel.width / 2;
     const centerY = wheel.height / 2;
     
-    // Convert mouse position to canvas coordinates
-    mouseX = ((e.clientX - rect.left) / rect.width) * wheel.width - centerX;
-    mouseY = ((e.clientY - rect.top) / rect.height) * wheel.height - centerY;
+    // Convert position to canvas coordinates
+    mouseX = ((clientX - rect.left) / rect.width) * wheel.width - centerX;
+    mouseY = ((clientY - rect.top) / rect.height) * wheel.height - centerY;
     
     // Normalize to gamepad-like coordinates (-1 to 1)
     mouseX = mouseX / (wheel.width / 2);
     mouseY = mouseY / (wheel.height / 2);
+  }
+
+  // Mouse events for the wheel canvas
+  wheel.addEventListener('mousemove', (e) => {
+    updatePosition(e.clientX, e.clientY);
   });
   
   wheel.addEventListener('mousedown', (e) => {
@@ -182,6 +196,172 @@ document.addEventListener('DOMContentLoaded', () => {
   
   wheel.addEventListener('mouseleave', () => {
     mouseDown = false;
+  });
+  
+  // Touch events for mobile devices
+  wheel.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // Prevent scrolling and other touch behaviors
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      updatePosition(touch.clientX, touch.clientY);
+      touchDown = true;
+    }
+  });
+  
+  wheel.addEventListener('touchmove', (e) => {
+    e.preventDefault(); // Prevent scrolling
+    if (e.touches.length > 0) {
+      const touch = e.touches[0];
+      updatePosition(touch.clientX, touch.clientY);
+    }
+  });
+  
+  wheel.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    touchDown = false;
+  });
+  
+  wheel.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    touchDown = false;
+  });
+  
+  // Mobile button controls
+  const mobile7th = document.getElementById('mobile7th');
+  const mobile9th = document.getElementById('mobile9th');
+  const mobileOctUp = document.getElementById('mobileOctUp');
+  const mobileOctDown = document.getElementById('mobileOctDown');
+  
+  // Hold-style mobile button handlers
+  function handleMobileButtonStart(stateKey, button) {
+    mobileState[stateKey] = true;
+    button.classList.add('active');
+  }
+  
+  function handleMobileButtonEnd(stateKey, button) {
+    mobileState[stateKey] = false;
+    button.classList.remove('active');
+  }
+  
+  // 7th button hold handlers
+  mobile7th.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('seventh', mobile7th);
+  });
+  
+  mobile7th.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('seventh', mobile7th);
+  });
+  
+  mobile7th.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('seventh', mobile7th);
+  });
+  
+  // 9th button hold handlers
+  mobile9th.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('ninth', mobile9th);
+  });
+  
+  mobile9th.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('ninth', mobile9th);
+  });
+  
+  mobile9th.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('ninth', mobile9th);
+  });
+  
+  // Octave up button hold handlers
+  mobileOctUp.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('octaveUp', mobileOctUp);
+  });
+  
+  mobileOctUp.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('octaveUp', mobileOctUp);
+  });
+  
+  mobileOctUp.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('octaveUp', mobileOctUp);
+  });
+  
+  // Octave down button hold handlers
+  mobileOctDown.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('octaveDown', mobileOctDown);
+  });
+  
+  mobileOctDown.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('octaveDown', mobileOctDown);
+  });
+  
+  mobileOctDown.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('octaveDown', mobileOctDown);
+  });
+  
+  // Also handle mouse events for desktop testing
+  mobile7th.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('seventh', mobile7th);
+  });
+  
+  mobile7th.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('seventh', mobile7th);
+  });
+  
+  mobile7th.addEventListener('mouseleave', (e) => {
+    handleMobileButtonEnd('seventh', mobile7th);
+  });
+  
+  mobile9th.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('ninth', mobile9th);
+  });
+  
+  mobile9th.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('ninth', mobile9th);
+  });
+  
+  mobile9th.addEventListener('mouseleave', (e) => {
+    handleMobileButtonEnd('ninth', mobile9th);
+  });
+  
+  mobileOctUp.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('octaveUp', mobileOctUp);
+  });
+  
+  mobileOctUp.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('octaveUp', mobileOctUp);
+  });
+  
+  mobileOctUp.addEventListener('mouseleave', (e) => {
+    handleMobileButtonEnd('octaveUp', mobileOctUp);
+  });
+  
+  mobileOctDown.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    handleMobileButtonStart('octaveDown', mobileOctDown);
+  });
+  
+  mobileOctDown.addEventListener('mouseup', (e) => {
+    e.preventDefault();
+    handleMobileButtonEnd('octaveDown', mobileOctDown);
+  });
+  
+  mobileOctDown.addEventListener('mouseleave', (e) => {
+    handleMobileButtonEnd('octaveDown', mobileOctDown);
   });
   
   // Keyboard events
@@ -861,12 +1041,12 @@ function poll(){
     // Use mouse position and keyboard buttons
     rawX = mouseX; rawY = mouseY; adjX = mouseX; adjY = mouseY;
     
-    // Get button states from keyboard
-    hold = mouseDown || keyboardState.space;
-    add7th = keyboardState.shift;
-    add9th = keyboardState.ctrl;
-    octaveUp = keyboardState.x;
-    octaveDown = keyboardState.z;
+    // Get button states from keyboard or touch
+    hold = mouseDown || touchDown || keyboardState.space;
+    add7th = keyboardState.shift || mobileState.seventh;
+    add9th = keyboardState.ctrl || mobileState.ninth;
+    octaveUp = keyboardState.x || mobileState.octaveUp;
+    octaveDown = keyboardState.z || mobileState.octaveDown;
   }
 
   const mag = Math.hypot(adjX, adjY);

@@ -300,6 +300,12 @@ button:disabled{
   letter-spacing:1px;
 }
 
+/* Hide mobile controls and instructions on desktop */
+.mobile-controls,
+.mobile-instructions {
+  display: none;
+}
+
 .dropdown-arrow {
   color:#ff6b35;
   font-size:12px;
@@ -794,4 +800,139 @@ footer{
   .controls{flex-direction:column;align-items:stretch}
   h1{font-size:20px}
   #chordName{font-size:28px}
+  
+  /* Fix sound design panel for mobile */
+  .sliders-container {
+    padding: 0 5px; /* Minimal side padding */
+    gap: 4px; /* Smaller gap between controls */
+    max-height: 160px; /* More height for mobile */
+    display: flex; /* Back to flex for simpler layout */
+    flex-wrap: nowrap; /* Don't wrap */
+    justify-content: space-between;
+    align-items: flex-end;
+    overflow-x: auto; /* Allow horizontal scroll if needed */
+    width: 100%; /* Full width of parent */
+    max-width: calc(100vw - 52px); /* Account for app margins (10px) + padding (16px) on both sides */
+    box-sizing: border-box; /* Include padding in width */
+  }
+  
+  .control-column.wave-column {
+    position: static; /* Remove absolute positioning */
+    transform: none;
+    order: -2; /* Put wave selector first */
+    min-width: 45px; /* Fixed width for wave selector */
+    flex-shrink: 0; /* Don't shrink */
+  }
+  
+  .control-column.reset-column {
+    position: static; /* Remove absolute positioning */
+    transform: none;
+    order: 10; /* Put reset button last */
+    min-width: 45px; /* Fixed width for reset button */
+    flex-shrink: 0; /* Don't shrink */
+  }
+  
+  .control-column {
+    min-width: 32px; /* Smaller minimum width */
+    display: flex; /* Ensure flex display */
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end; /* Align to bottom */
+    flex-shrink: 0; /* Don't shrink below min-width */
+  }
+  
+  .control-label {
+    font-size: 9px; /* Slightly smaller labels */
+  }
+  
+  .value-display {
+    font-size: 9px; /* Smaller value displays */
+    padding: 2px 4px;
+    min-width: 24px;
+  }
+  
+  .vertical-slider {
+    height: 55px; /* Even shorter sliders for mobile */
+    width: 10px; /* Thinner sliders */
+  }
+  
+  /* Ensure the synth panel doesn't overflow */
+  .synth-controls-panel {
+    width: 100%;
+    max-width: 100vw; /* Never exceed viewport width */
+    overflow: hidden;
+    box-sizing: border-box; /* Include padding in width calculation */
+  }
+  
+  .wave-select {
+    font-size: 8px; /* Even smaller font for wave selector */
+    padding: 2px 3px;
+    width: 100%; /* Full width of its container */
+    max-width: 45px; /* Match container width */
+    text-align: center;
+    background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+    border: 1px solid #555;
+    color: #ddd;
+    border-radius: 3px;
+  }
+  
+  .reset-button {
+    font-size: 8px; /* Even smaller reset button */
+    padding: 3px 6px;
+    width: 100%;
+    max-width: 45px;
+  }
+  
+  /* Ensure DETUNE, GAIN, MIX controls are visible */
+  .sliders-container .control-column:not(.wave-column):not(.reset-column) {
+    opacity: 1;
+    visibility: visible;
+    position: static;
+  }
+  
+  /* Mobile touch controls */
+  .mobile-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+    width: 100%;
+    max-width: 380px;
+  }
+  
+  .mobile-control-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+  }
+  
+  .mobile-btn {
+    background: linear-gradient(145deg, #3a3a3a, #2a2a2a);
+    border: 1px solid #555;
+    color: #ddd;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 60px;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  
+  .mobile-btn:active,
+  .mobile-btn.active {
+    background: linear-gradient(145deg, #ff6b35, #e55a2b);
+    border-color: #ff8c42;
+    color: #fff;
+    box-shadow: 0 0 8px rgba(255, 107, 53, 0.6);
+    transform: scale(0.95);
+  }
+  
+  /* Show mobile instructions on mobile */
+  .mobile-instructions {
+    display: block;
+  }
 }
