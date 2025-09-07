@@ -506,7 +506,6 @@ function ensureAudio(){
   if(!audioCtx) {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      console.log('AudioContext created, state:', audioCtx.state);
       
       // Create master gain node for safety
       if(!masterGain) {
@@ -521,25 +520,21 @@ function ensureAudio(){
   }
   
   // Don't try to resume here - let the caller handle it
-  console.log('ensureAudio completed, audioCtx state:', audioCtx?.state);
 }
 
 // Function to initialize audio on first user interaction
 function initAudioOnUserGesture() {
   if (!audioInitialized && !audioInitializing) {
     audioInitializing = true;
-    console.log('Initializing audio on user gesture...');
     
     try {
       ensureAudio();
       
       if (audioCtx && audioCtx.state === 'suspended') {
-        console.log('Audio context suspended, attempting to resume...');
         
         // Set a definite timeout to reset flag - this WILL fire regardless
         setTimeout(() => {
           if (audioInitializing) {
-            console.log('Audio initialization timeout - resetting flag');
             audioInitializing = false;
           }
         }, 500); // Short timeout
@@ -547,8 +542,12 @@ function initAudioOnUserGesture() {
         audioCtx.resume().then(() => {
           audioInitialized = true;
           audioInitializing = false;
-          console.log('Audio initialized and resumed successfully');
           statusEl.textContent = 'Audio ready - continue playing!';
+          
+          // Remove gamepad audio prompt if it exists
+          const prompt = document.querySelector('.gamepad-audio-prompt');
+          if (prompt) prompt.remove();
+          
         }).catch(err => {
           audioInitializing = false;
           console.error('Audio initialization failed:', err);
@@ -557,8 +556,12 @@ function initAudioOnUserGesture() {
       } else if (audioCtx && audioCtx.state === 'running') {
         audioInitialized = true;
         audioInitializing = false;
-        console.log('Audio context already running');
         statusEl.textContent = 'Audio ready - play chords!';
+        
+        // Remove gamepad audio prompt if it exists
+        const prompt = document.querySelector('.gamepad-audio-prompt');
+        if (prompt) prompt.remove();
+        
       } else {
         audioInitializing = false;
         console.error('Audio context in unexpected state:', audioCtx?.state);
@@ -570,6 +573,130 @@ function initAudioOnUserGesture() {
       statusEl.textContent = 'Audio initialization failed - try refreshing';
     }
   }
+}
+
+// GAMEPAD AUDIO FIX: Show prompt for gamepad users to click
+let gamepadAudioPromptShown = false; // Track if we've shown the gamepad audio prompt
+
+function showGamepadAudioPrompt() {
+  if (gamepadAudioPromptShown) return;
+  gamepadAudioPromptShown = true;
+  
+  // Create backdrop overlay
+  const backdrop = document.createElement('div');
+  backdrop.className = 'gamepad-audio-backdrop';
+  backdrop.style.cssText = `
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    bottom: 0; 
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  `;
+  
+  // Create the prompt modal
+  const prompt = document.createElement('div');
+  prompt.className = 'gamepad-audio-prompt';
+  prompt.style.cssText = `
+    position: fixed; 
+    top: 50%; 
+    left: 50%; 
+    transform: translate(-50%, -50%) scale(0.8);
+    background: linear-gradient(145deg, #ff6b35, #e55a2b);
+    color: white; 
+    padding: 30px 40px; 
+    border-radius: 20px;
+    font-family: 'Arial', sans-serif; 
+    font-size: 18px; 
+    font-weight: bold;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+    z-index: 10000; 
+    text-align: center; 
+    max-width: 400px;
+    min-width: 320px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  `;
+  
+  prompt.innerHTML = `
+    <div style="font-size: 32px; margin-bottom: 15px;">🎮</div>
+    <div style="font-size: 20px; margin-bottom: 10px;">Audio Setup Required</div>
+    <div style="font-size: 14px; opacity: 0.9; line-height: 1.4;">
+      Click here to enable sound<br>for your gamepad
+    </div>
+  `;
+  
+  document.body.appendChild(backdrop);
+  document.body.appendChild(prompt);
+  
+  // Animate in
+  requestAnimationFrame(() => {
+    backdrop.style.opacity = '1';
+    prompt.style.opacity = '1';
+    prompt.style.transform = 'translate(-50%, -50%) scale(1)';
+  });
+  
+  // Initialize audio when clicked
+  const handleClick = (e) => {
+    e.stopPropagation();
+    
+    // Animate out
+    backdrop.style.opacity = '0';
+    prompt.style.opacity = '0';
+    prompt.style.transform = 'translate(-50%, -50%) scale(0.9)';
+    
+    // Remove after animation
+    setTimeout(() => {
+      initAudioOnUserGesture();
+      if (backdrop.parentNode) backdrop.remove();
+      if (prompt.parentNode) prompt.remove();
+    }, 300);
+  };
+  
+  // Only listen for clicks on the prompt itself, not globally
+  prompt.addEventListener('click', handleClick);
+  backdrop.addEventListener('click', handleClick); // Also allow clicking backdrop
+  
+  // Also allow any key press to trigger (but not interfere with wheel)
+  const handleKey = (e) => {
+    // Animate out
+    backdrop.style.opacity = '0';
+    prompt.style.opacity = '0';
+    prompt.style.transform = 'translate(-50%, -50%) scale(0.9)';
+    
+    // Remove after animation
+    setTimeout(() => {
+      initAudioOnUserGesture();
+      if (backdrop.parentNode) backdrop.remove();
+      if (prompt.parentNode) prompt.remove();
+    }, 300);
+    
+    document.removeEventListener('keydown', handleKey);
+  };
+  
+  document.addEventListener('keydown', handleKey, { once: true });
+  
+  // Auto-remove after 12 seconds if no interaction
+  setTimeout(() => {
+    if (backdrop.parentNode || prompt.parentNode) {
+      // Animate out
+      backdrop.style.opacity = '0';
+      prompt.style.opacity = '0';
+      prompt.style.transform = 'translate(-50%, -50%) scale(0.9)';
+      
+      setTimeout(() => {
+        if (backdrop.parentNode) backdrop.remove();
+        if (prompt.parentNode) prompt.remove();
+        gamepadAudioPromptShown = false; // Allow showing again later
+      }, 300);
+    }
+  }, 12000);
 }
 let activeVoices = [];  // {osc,gain, midi}
 function noteToFreq(m){ return 440 * Math.pow(2,(m-69)/12); }
@@ -647,7 +774,6 @@ function startVoices(midiNotes){
 function createNewVoices(midiNotes) {
   // Prevent overlapping voice creation
   if (voiceCreationInProgress) {
-    console.log('Voice creation already in progress, skipping...');
     return;
   }
   
@@ -1168,24 +1294,31 @@ function poll(){
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let usingGamepad = false;
   let gp = null;
+  let gamepadActive = false;
   
-  // Check for gamepad first
+  // Check for gamepad presence and activity
   if(pads && gpIndex === null){ 
     for(let i=0;i<pads.length;i++){ 
       if(pads[i]){ 
         gpIndex = i; 
         gpLed.classList.add('on'); 
-        statusEl.textContent = 'Gamepad connected'; 
+        // Don't change status here - let it be dynamic based on usage
         break; 
       } 
     } 
   }
   
   gp = pads[gpIndex];
-  if(gp){
-    usingGamepad = true;
+  
+  // Check if gamepad is actively being used (any axis movement or button pressed)
+  if(gp) {
+    const axisThreshold = 0.1;
+    const hasAxisMovement = Math.abs(gp.axes[0]) > axisThreshold || Math.abs(gp.axes[1]) > axisThreshold;
+    const hasButtonPressed = gp.buttons.some(button => button && button.pressed);
+    
+    gamepadActive = hasAxisMovement || hasButtonPressed;
   } else {
-    // No gamepad, use mouse/keyboard
+    // No gamepad detected
     gpLed.classList.remove('on');
     if(gpIndex !== null) {
       statusEl.textContent = 'Using mouse + keyboard';
@@ -1193,7 +1326,10 @@ function poll(){
     }
   }
 
-  // Get input values (either from gamepad or mouse/keyboard)
+  // Determine which input to use based on activity, not just presence
+  usingGamepad = gamepadActive && gp;
+
+  // Get input values (from whichever input is active)
   let rawX=0, rawY=0, adjX=0, adjY=0;
   let hold = false, add7th = false, add9th = false, octaveUp = false, octaveDown = false;
   
@@ -1239,6 +1375,12 @@ function poll(){
     } else {
       const {degree, flavor} = mapFirstVariant(adjX, adjY, scale);
       
+      // Check if we need to show gamepad audio prompt (for any gamepad activity, not just RT)
+      if (usingGamepad && !audioInitialized && !audioInitializing && !gamepadAudioPromptShown) {
+        showGamepadAudioPrompt();
+        // Still continue to show the wheel and chord name, just don't play sound
+      }
+      
       // Determine correct chord type based on scale degree
       const scaleName = scaleSelect.value;
       let chordType;
@@ -1271,7 +1413,7 @@ function poll(){
       
       chordNameEl.textContent = extendedChordName;
       
-      // Update status to show extensions and octave
+      // Update status to show extensions, octave, and input method
       let statusText = `Degree:${degree} Type:${chordType}`;
       if (add7th || add9th) {
         statusText += ' Extensions:';
@@ -1281,6 +1423,11 @@ function poll(){
       if (octaveShift !== 0) {
         statusText += ` Octave:${octaveShift > 0 ? '+' : ''}${octaveShift}`;
       }
+      
+      // Add input method indicator
+      const inputMethod = usingGamepad ? 'Gamepad' : 'Mouse+KB';
+      statusText += ` | Input: ${inputMethod}`;
+      
       statusEl.textContent = statusText;
       
       // Convert to MIDI notes with proper octave handling including user octave shift
@@ -1296,10 +1443,15 @@ function poll(){
         drawWheel(scale, degree, highlightPCs);
         
         if(!playing){
+          // Initialize audio on first gamepad use if needed
+          if (!audioInitialized && !audioInitializing) {
+            initAudioOnUserGesture();
+          }
+          
           // Only prevent starting voices if we're actively initializing audio
           if (audioInitializing) {
-            console.log('Audio initializing, skipping voice start in poll loop');
-          } else {
+            // Skip voice start while initializing
+          } else if (audioInitialized) {
             // Try to start voices, only set playing=true if successful
             const voicesStarted = startVoices(midis);
             if (voicesStarted !== false) {
@@ -1309,8 +1461,15 @@ function poll(){
             }
           }
         } else {
-          // morph
-          morphVoices(midis); lastPlayed=midis.slice();
+          // Check if chord has actually changed before morphing to prevent retriggering
+          const chordChanged = lastPlayed.length !== midis.length || 
+                              lastPlayed.some((note, index) => note !== midis[index]);
+          
+          if (chordChanged) {
+            // morph only when chord actually changes
+            morphVoices(midis); 
+            lastPlayed = midis.slice();
+          }
         }
       } else {
         // Draw without chord highlighting when not holding A
@@ -1355,7 +1514,7 @@ function poll(){
         if(!playing){ 
           // Only prevent starting voices if we're actively initializing audio
           if (audioInitializing) {
-            console.log('Audio initializing, skipping voice start in poll loop');
+            // Skip voice start while initializing
           } else {
             startVoices(midis); recordOn(midis); playing=true; lastPlayed=midis.slice(); 
           }
