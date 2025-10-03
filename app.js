@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusEl.textContent = 'Audio ready! Tap wheel to play chords';
         
       } catch (error) {
-        console.error('Failed to initialize audio:', error);
+        // Failed to initialize audio
         audioInitBtn.textContent = 'Try Again';
         audioInitBtn.style.background = 'linear-gradient(145deg, #ff4444, #cc3333)';
       }
@@ -491,9 +491,6 @@ function toggleSynthControls() {
 }
 
 // Debug: Check if recording buttons exist
-console.log('Start button found:', startRecBtn);
-console.log('Stop button found:', stopRecBtn);
-console.log('Status element found:', statusEl);
 
 // ---------- Audio / synth ----------
 let audioCtx = null;
@@ -514,7 +511,7 @@ function ensureAudio(){
         masterGain.connect(audioCtx.destination);
       }
     } catch (err) {
-      console.error('Failed to create AudioContext:', err);
+      // Failed to create AudioContext
       throw err; // Re-throw so caller can handle
     }
   }
@@ -550,7 +547,6 @@ function initAudioOnUserGesture() {
           
         }).catch(err => {
           audioInitializing = false;
-          console.error('Audio initialization failed:', err);
           statusEl.textContent = 'Audio initialization failed - try refreshing';
         });
       } else if (audioCtx && audioCtx.state === 'running') {
@@ -564,12 +560,10 @@ function initAudioOnUserGesture() {
         
       } else {
         audioInitializing = false;
-        console.error('Audio context in unexpected state:', audioCtx?.state);
         statusEl.textContent = 'Audio context creation failed';
       }
     } catch (err) {
       audioInitializing = false;
-      console.error('Failed to create audio context:', err);
       statusEl.textContent = 'Audio initialization failed - try refreshing';
     }
   }
@@ -905,7 +899,7 @@ function stopVoices(){
             const fadeTime = Math.min(params.release, 0.3); // Cap at 300ms for responsiveness
             gain.gain.exponentialRampToValueAtTime(0.0001, now + fadeTime);
           } catch(e) {
-            console.warn('Error fading gain:', e);
+            // Error fading gain
           }
         }
       });
@@ -917,12 +911,12 @@ function stopVoices(){
             const fadeTime = Math.min(params.release, 0.3);
             osc.stop(now + fadeTime + 0.01); // Small buffer after fade
           } catch(e) {
-            console.warn('Error stopping oscillator:', e);
+            // Error stopping oscillator
           }
         }
       });
     } catch(e){
-      console.warn('Error in stopVoices:', e);
+      // Error in stopVoices
     }
   });
   
@@ -964,6 +958,11 @@ function buildMidiFromEvents(events, opts={tpq:TPQ, tempo:500000}){
   data.push(...writeVarLen(0)); data.push(0xFF,0x51,0x03, (tempo>>16)&0xFF,(tempo>>8)&0xFF,tempo&0xFF);
   data.push(...writeVarLen(0)); data.push(0xC0,0x00);
   for(const ev of events){
+    // Validate MIDI note range (0-127)
+    if(ev.note < 0 || ev.note > 127) {
+      continue;
+    }
+    
     const tick = Math.round(ev.time * ticksPerMs);
     const delta = Math.max(0, tick - lastTick);
     data.push(...writeVarLen(delta));
@@ -1073,12 +1072,9 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
       wctx.fillStyle = activeGradient;
       wctx.fill();
       
-      console.log(`🔵 ACTIVE SLICE: ${NOTE_NAMES[scalePCs[i] % 12]} - fillColor=${fillColor}, noteType=${noteType}`);
       
       // Use consistent, subtle intensity for all active notes
       const baseIntensity = 1.2; // Fixed subtle intensity for clean neon look
-      
-      console.log(`  RENDERING GLOW: ${NOTE_NAMES[scalePCs[i] % 12]} - intensity=${baseIntensity.toFixed(2)}, glowColor=${glowColor}, noteType=${noteType}`);
 
     } else {
       // Inactive slice with brushed metal look
@@ -1466,8 +1462,19 @@ function poll(){
                               lastPlayed.some((note, index) => note !== midis[index]);
           
           if (chordChanged) {
+            // Record the chord change: end previous chord and start new one
+            if (recording && lastPlayed.length > 0) {
+              recordOff(lastPlayed);
+            }
+            
             // morph only when chord actually changes
-            morphVoices(midis); 
+            morphVoices(midis);
+            
+            // Record the new chord
+            if (recording) {
+              recordOn(midis);
+            }
+            
             lastPlayed = midis.slice();
           }
         }
@@ -1519,7 +1526,28 @@ function poll(){
             startVoices(midis); recordOn(midis); playing=true; lastPlayed=midis.slice(); 
           }
         }
-        else { morphVoices(midis); lastPlayed=midis.slice(); }
+        else { 
+          // Check if chord has actually changed in free mode
+          const chordChanged = lastPlayed.length !== midis.length || 
+                              lastPlayed.some((note, index) => note !== midis[index]);
+          
+          if (chordChanged) {
+            // Record the chord change: end previous chord and start new one
+            if (recording && lastPlayed.length > 0) {
+              recordOff(lastPlayed);
+            }
+            
+            // Update voices
+            morphVoices(midis);
+            
+            // Record the new chord
+            if (recording) {
+              recordOn(midis);
+            }
+            
+            lastPlayed = midis.slice();
+          }
+        }
       } else {
         if(playing){ stopVoices(); recordOff(lastPlayed); playing=false; lastPlayed=[]; }
       }
@@ -1547,14 +1575,12 @@ connectMidiBtn.addEventListener('click', async ()=>{
 
 // ---------- Recording controls ----------
 startRecBtn.addEventListener('click', ()=>{
-  console.log('Start recording button clicked');
   recording = true; recEvents = []; recStart = performance.now(); 
   startRecBtn.disabled = true; stopRecBtn.disabled = false; 
   recLed.classList.add('recording');
   statusEl.textContent = 'Recording...';
 });
 stopRecBtn.addEventListener('click', ()=>{
-  console.log('Stop recording button clicked');
   recording = false; startRecBtn.disabled = false; stopRecBtn.disabled = true; 
   recLed.classList.remove('recording');
   statusEl.textContent = 'Building MIDI...';
@@ -1562,7 +1588,7 @@ stopRecBtn.addEventListener('click', ()=>{
   const buf = buildMidiFromEvents(recEvents);
   const blob = new Blob([buf], {type:'audio/midi'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'hichord_session.mid'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  const a = document.createElement('a'); a.href = url; a.download = 'chordrack_session.mid'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   statusEl.textContent = 'MIDI ready for download.';
 });
 
