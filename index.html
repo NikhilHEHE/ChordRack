@@ -61,8 +61,10 @@
 
       <label><input type="checkbox" id="legacyChk" checked style="display:none;"> </label>
 
-      <button id="startRecBtn">Start Recording</button>
+      <button id="startRecBtn">Start MIDI Recording</button>
       <button id="stopRecBtn" disabled>Stop & Download MIDI</button>
+      <button id="startAudioRecBtn">Start Audio Recording</button>
+      <button id="stopAudioRecBtn" disabled>Stop & Download WAV</button>
       <button id="connectMidiBtn">(Optional) Connect WebMIDI</button>
     </div>
 
@@ -166,7 +168,11 @@
           </div>
           <div class="status-indicator">
             <div id="recLed" class="led-large"></div>
-            <div class="led-label">Recording</div>
+            <div class="led-label">MIDI Rec</div>
+          </div>
+          <div class="status-indicator">
+            <div id="audioRecLed" class="led-large"></div>
+            <div class="led-label">Audio Rec</div>
           </div>
         </div>
         

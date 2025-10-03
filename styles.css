@@ -237,10 +237,34 @@ button:disabled{
 }
 
 #startRecBtn{
-  background:linear-gradient(145deg,#4caf50,#388e3c);
-  color:white;
-  border:1px solid #2e7d32;
-  text-shadow:0 1px 1px rgba(0,0,0,0.5);
+  background: linear-gradient(145deg, #ff4444, #cc3333);
+}
+
+#startAudioRecBtn {
+  background: linear-gradient(145deg, #4a9a4a, #3d7a3d);
+}
+
+#startAudioRecBtn:hover {
+  background: linear-gradient(145deg, #5aaa5a, #4a8a4a);
+  transform: translateY(-1px);
+}
+
+#stopAudioRecBtn {
+  background: linear-gradient(145deg, #ffaa44, #cc8833);
+}
+
+#stopAudioRecBtn:hover {
+  background: linear-gradient(145deg, #ffbb55, #dd9944);
+  transform: translateY(-1px);
+}
+
+#stopAudioRecBtn {
+  background: linear-gradient(145deg, #ffaa44, #cc8833);
+}
+
+#stopAudioRecBtn:hover {
+  background: linear-gradient(145deg, #ffbb55, #dd9944);
+  transform: translateY(-1px);
 }
 
 #startRecBtn:hover:not(:disabled){

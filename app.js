@@ -22,10 +22,13 @@ const soundSelect = document.getElementById('soundSelect');
 const legacyChk = document.getElementById('legacyChk');
 const startRecBtn = document.getElementById('startRecBtn');
 const stopRecBtn = document.getElementById('stopRecBtn');
+const startAudioRecBtn = document.getElementById('startAudioRecBtn');
+const stopAudioRecBtn = document.getElementById('stopAudioRecBtn');
 const connectMidiBtn = document.getElementById('connectMidiBtn');
 const gpLed = document.getElementById('gpLed');
 const mLed = document.getElementById('mLed');
 const recLed = document.getElementById('recLed');
+const audioRecLed = document.getElementById('audioRecLed');
 const chordNameEl = document.getElementById('chordName');
 const statusEl = document.getElementById('status');
 const debugEl = document.getElementById('debug');
@@ -499,6 +502,12 @@ let audioInitializing = false; // Prevent multiple simultaneous initialization a
 let masterGain = null; // Add master volume control for safety
 let voiceCreationInProgress = false; // Prevent overlapping voice creation
 
+// ---------- Audio Recording ----------
+let audioRecording = false;
+let mediaRecorder = null;
+let recordedChunks = [];
+let audioRecordingNode = null; // For capturing audio output
+
 function ensureAudio(){ 
   if(!audioCtx) {
     try {
@@ -510,6 +519,10 @@ function ensureAudio(){
         masterGain.gain.setValueAtTime(4, audioCtx.currentTime); // User's preferred volume level
         masterGain.connect(audioCtx.destination);
       }
+      
+      // Setup audio recording capture node
+      setupAudioRecording();
+      
     } catch (err) {
       // Failed to create AudioContext
       throw err; // Re-throw so caller can handle
@@ -517,6 +530,275 @@ function ensureAudio(){
   }
   
   // Don't try to resume here - let the caller handle it
+}
+
+// Setup audio recording infrastructure
+function setupAudioRecording() {
+  if (!audioCtx || audioRecordingNode) return;
+  
+  try {
+    // Create a gain node specifically for recording (parallel to masterGain)
+    audioRecordingNode = audioCtx.createGain();
+    audioRecordingNode.gain.setValueAtTime(1.0, audioCtx.currentTime); // Match master gain volume
+    
+    // Don't connect to destination - this is just for recording
+    // The masterGain still handles the actual audio output
+  } catch (err) {
+    // Failed to setup audio recording
+  }
+}
+
+// Start audio recording
+function startAudioRecording() {
+  if (audioRecording || !audioCtx) {
+    statusEl.textContent = 'Audio context not ready';
+    return;
+  }
+  
+  try {
+    // Ensure audio recording node exists
+    if (!audioRecordingNode) {
+      setupAudioRecording();
+    }
+    
+    if (!audioRecordingNode) {
+      statusEl.textContent = 'Failed to setup audio recording';
+      return;
+    }
+    
+    // Create MediaStreamDestination to capture audio
+    const dest = audioCtx.createMediaStreamDestination();
+    audioRecordingNode.connect(dest);
+    
+    // Check MediaRecorder support
+    if (!window.MediaRecorder) {
+      statusEl.textContent = 'Audio recording not supported in this browser';
+      return;
+    }
+    
+    // Setup MediaRecorder with fallback MIME types
+    recordedChunks = [];
+    let mimeType = 'audio/webm;codecs=opus';
+    
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/webm';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/mp4';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          statusEl.textContent = 'No supported audio recording format';
+          return;
+        }
+      }
+    }
+    
+    mediaRecorder = new MediaRecorder(dest.stream, { mimeType });
+    
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    };
+    
+    mediaRecorder.onstop = () => {
+      // Convert and download audio
+      convertAndDownloadAudio();
+    };
+    
+    mediaRecorder.onerror = (event) => {
+      statusEl.textContent = 'Recording error: ' + event.error;
+      stopAudioRecording();
+    };
+    
+    // Start recording
+    mediaRecorder.start(1000); // Collect data every second
+    audioRecording = true;
+    
+    startAudioRecBtn.disabled = true;
+    stopAudioRecBtn.disabled = false;
+    audioRecLed.classList.add('recording');
+    statusEl.textContent = 'Recording audio...';
+    
+  } catch (err) {
+    statusEl.textContent = 'Audio recording failed: ' + err.message;
+  }
+}
+
+// Stop audio recording
+function stopAudioRecording() {
+  if (!audioRecording || !mediaRecorder) return;
+  
+  try {
+    mediaRecorder.stop();
+    audioRecording = false;
+    
+    startAudioRecBtn.disabled = false;
+    stopAudioRecBtn.disabled = true;
+    audioRecLed.classList.remove('recording');
+    statusEl.textContent = 'Processing audio...';
+    
+  } catch (err) {
+    statusEl.textContent = 'Error stopping audio recording';
+    audioRecording = false;
+    startAudioRecBtn.disabled = false;
+    stopAudioRecBtn.disabled = true;
+    audioRecLed.classList.remove('recording');
+  }
+}
+
+// WAV file header creation
+function createWAVHeader(sampleRate, numChannels, numSamples) {
+  const buffer = new ArrayBuffer(44);
+  const view = new DataView(buffer);
+  
+  // RIFF identifier
+  writeString(view, 0, 'RIFF');
+  // File length
+  view.setUint32(4, 36 + numSamples * 2, true);
+  // RIFF type
+  writeString(view, 8, 'WAVE');
+  // Format chunk identifier
+  writeString(view, 12, 'fmt ');
+  // Format chunk length
+  view.setUint32(16, 16, true);
+  // Sample format (PCM)
+  view.setUint16(20, 1, true);
+  // Channel count
+  view.setUint16(22, numChannels, true);
+  // Sample rate
+  view.setUint32(24, sampleRate, true);
+  // Byte rate
+  view.setUint32(28, sampleRate * numChannels * 2, true);
+  // Block align
+  view.setUint16(32, numChannels * 2, true);
+  // Bits per sample
+  view.setUint16(34, 16, true);
+  // Data chunk identifier
+  writeString(view, 36, 'data');
+  // Data chunk length
+  view.setUint32(40, numSamples * 2, true);
+  
+  return buffer;
+}
+
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
+  }
+}
+
+// Convert Float32 audio data to Int16 WAV data
+function floatTo16BitPCM(output, offset, input) {
+  for (let i = 0; i < input.length; i++, offset += 2) {
+    const s = Math.max(-1, Math.min(1, input[i]));
+    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+}
+
+// Convert recorded audio to WAV and download
+function convertAndDownloadAudio() {
+  if (recordedChunks.length === 0) {
+    statusEl.textContent = 'No audio recorded';
+    return;
+  }
+  
+  statusEl.textContent = 'Converting to WAV...';
+  
+  // Create blob from recorded chunks
+  const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+  
+  // Convert WebM to WAV using Web Audio API
+  convertWebMToWAV(blob).then((wavBlob) => {
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ChordRack_audio_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    
+    statusEl.textContent = 'WAV file downloaded';
+    recordedChunks = [];
+  }).catch((err) => {
+    // Fallback to WebM if conversion fails
+    statusEl.textContent = 'WAV conversion failed, downloading WebM...';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ChordRack_audio_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    
+    statusEl.textContent = 'WebM file downloaded (WAV conversion failed)';
+    recordedChunks = [];
+  });
+}
+
+// Convert WebM blob to WAV using Web Audio API
+async function convertWebMToWAV(webmBlob) {
+  return new Promise((resolve, reject) => {
+    const fileReader = new FileReader();
+    
+    fileReader.onload = async function(e) {
+      try {
+        // Decode the audio data
+        const arrayBuffer = e.target.result;
+        const audioData = await audioCtx.decodeAudioData(arrayBuffer);
+        
+        // Get audio properties
+        const sampleRate = audioData.sampleRate;
+        const numChannels = audioData.numberOfChannels;
+        const length = audioData.length;
+        
+        // Create WAV header
+        const headerBuffer = createWAVHeader(sampleRate, numChannels, length * numChannels);
+        
+        // Convert audio data to Int16 PCM
+        const wavBuffer = new ArrayBuffer(headerBuffer.byteLength + length * numChannels * 2);
+        const wavView = new DataView(wavBuffer);
+        
+        // Copy header
+        new Uint8Array(wavBuffer, 0, headerBuffer.byteLength).set(new Uint8Array(headerBuffer));
+        
+        // Convert and copy audio data
+        let offset = headerBuffer.byteLength;
+        
+        if (numChannels === 1) {
+          // Mono - simple conversion
+          const channelData = audioData.getChannelData(0);
+          floatTo16BitPCM(wavView, offset, channelData);
+        } else {
+          // Stereo - properly interleave left and right channels
+          const leftChannel = audioData.getChannelData(0);
+          const rightChannel = numChannels > 1 ? audioData.getChannelData(1) : leftChannel; // Use left channel for both if no right channel
+          
+          for (let i = 0; i < leftChannel.length; i++) {
+            // Left channel sample
+            const leftSample = Math.max(-1, Math.min(1, leftChannel[i]));
+            wavView.setInt16(offset, leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF, true);
+            offset += 2;
+            
+            // Right channel sample
+            const rightSample = Math.max(-1, Math.min(1, rightChannel[i]));
+            wavView.setInt16(offset, rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF, true);
+            offset += 2;
+          }
+        }
+        
+        // Create WAV blob
+        const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+        resolve(wavBlob);
+        
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    fileReader.onerror = () => reject(new Error('Failed to read audio file'));
+    fileReader.readAsArrayBuffer(webmBlob);
+  });
 }
 
 // Function to initialize audio on first user interaction
@@ -808,9 +1090,12 @@ function createNewVoices(midiNotes) {
     
     osc1.connect(gain1);
     gain1.connect(masterGain);
+    if (audioRecordingNode) {
+      gain1.connect(audioRecordingNode);
+    }
     
     // ADSR Envelope with fixed, consistent levels
-    const safePeakGain = Math.min(0.08, params.gain * octaveGainMultiplier * 0.25); // Reduced and fixed
+    const safePeakGain = Math.min(0.15, params.gain * octaveGainMultiplier * 0.5); // Restored original levels
     const sustainLevel = safePeakGain * params.sustain;
     
     gain1.gain.linearRampToValueAtTime(safePeakGain, now + params.attack);
@@ -832,6 +1117,9 @@ function createNewVoices(midiNotes) {
       
       osc2.connect(gain2);
       gain2.connect(masterGain); // Connect to master gain instead of destination
+      if (audioRecordingNode) {
+        gain2.connect(audioRecordingNode);
+      }
       
       // Layer 2 envelope with very conservative levels
       const safePeakGain2 = Math.min(0.05, safePeakGain * params.mix * 0.4); // Even lower max
@@ -1578,7 +1866,7 @@ startRecBtn.addEventListener('click', ()=>{
   recording = true; recEvents = []; recStart = performance.now(); 
   startRecBtn.disabled = true; stopRecBtn.disabled = false; 
   recLed.classList.add('recording');
-  statusEl.textContent = 'Recording...';
+  statusEl.textContent = 'Recording MIDI...';
 });
 stopRecBtn.addEventListener('click', ()=>{
   recording = false; startRecBtn.disabled = false; stopRecBtn.disabled = true; 
@@ -1590,6 +1878,28 @@ stopRecBtn.addEventListener('click', ()=>{
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'chordrack_session.mid'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   statusEl.textContent = 'MIDI ready for download.';
+});
+
+// Audio Recording Event Listeners
+startAudioRecBtn.addEventListener('click', (e)=>{
+  e.preventDefault();
+  
+  if (!audioInitialized) {
+    alert('Please initialize audio first by playing a chord');
+    return;
+  }
+  
+  if (!audioCtx || audioCtx.state !== 'running') {
+    alert('Audio context not ready. Try playing a chord first.');
+    return;
+  }
+  
+  startAudioRecording();
+});
+
+stopAudioRecBtn.addEventListener('click', (e)=>{
+  e.preventDefault();
+  stopAudioRecording();
 });
 
 // quick helper to start with beginner
