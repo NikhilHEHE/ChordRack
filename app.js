@@ -20,6 +20,7 @@ const rootSelect = document.getElementById('rootSelect');
 const scaleSelect = document.getElementById('scaleSelect');
 const soundSelect = document.getElementById('soundSelect');
 const legacyChk = document.getElementById('legacyChk');
+const inputSelect = document.getElementById('inputSelect');
 const startRecBtn = document.getElementById('startRecBtn');
 const stopRecBtn = document.getElementById('stopRecBtn');
 const startAudioRecBtn = document.getElementById('startAudioRecBtn');
@@ -1479,6 +1480,7 @@ let gpIndex = null;
 let axisX = 0, axisY = 1; // not used for legacy mapping, but harmless
 let invertX = false, invertY = false;
 let playing = false, lastPlayed = [];
+let lastActiveInput = 'mouse'; // used by Auto input mode: 'gamepad' | 'mouse'
 
 // FIX 1 & 2: Use event-driven gamepad connection tracking instead of relying
 // solely on poll-loop scanning. gamepadconnected fires reliably on all browsers
@@ -1625,11 +1627,34 @@ function poll() {
     gpLed.classList.remove('on');
   }
 
-  // FIX 3: usingGamepad should be based on whether a gamepad is PRESENT,
-  // not whether it is actively moving/pressing right now. The old check
-  // (gamepadActive && gp) caused gamepad input to be silently dropped when
-  // the stick was centered or no button was pressed.
-  usingGamepad = !!gp;
+  // Determine which input to use based on the Input Mode selector.
+  //   "auto"    → track which input was most recently active and switch seamlessly
+  //   "gamepad" → always use gamepad (if connected)
+  //   "mouse"   → always use mouse + keyboard
+  const inputMode = inputSelect ? inputSelect.value : 'auto';
+
+  if (inputMode === 'gamepad') {
+    usingGamepad = !!gp;
+  } else if (inputMode === 'mouse') {
+    usingGamepad = false;
+  } else {
+    // Auto: prefer whichever input was most recently active.
+    // Check current-frame gamepad activity (axis movement or button press).
+    if (gp) {
+      const gpHasActivity =
+        Math.abs(gp.axes[0] ?? 0) > 0.1 ||
+        Math.abs(gp.axes[1] ?? 0) > 0.1 ||
+        gp.buttons.some(b => b && b.pressed);
+      if (gpHasActivity) lastActiveInput = 'gamepad';
+    }
+    // Mouse/KB activity is tracked via existing event listeners (mouseDown, keyboardState, etc.)
+    const mouseKbActive = mouseDown || touchDown || keyboardState.space ||
+      keyboardState.shift || keyboardState.ctrl || keyboardState.x || keyboardState.z ||
+      Math.abs(mouseX) > 0.05 || Math.abs(mouseY) > 0.05;
+    if (mouseKbActive) lastActiveInput = 'mouse';
+
+    usingGamepad = (lastActiveInput === 'gamepad') && !!gp;
+  }
 
   // Get input values (from whichever input is active)
   let rawX = 0, rawY = 0, adjX = 0, adjY = 0;
