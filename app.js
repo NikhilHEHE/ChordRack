@@ -1,14 +1,14 @@
 // ---------- Configuration & data ----------
-const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const MAJOR = [0,2,4,5,7,9,11];
-const MINOR = [0,2,3,5,7,8,10];
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const MAJOR = [0, 2, 4, 5, 7, 9, 11];
+const MINOR = [0, 2, 3, 5, 7, 8, 10];
 const FLAVORS = [
-  {name:'Triad', intervals:[0,4,7]},
-  {name:'7th', intervals:[0,4,7,10]},
-  {name:'sus4', intervals:[0,5,7]},
-  {name:'add9', intervals:[0,4,7,14]}
+  { name: 'Triad', intervals: [0, 4, 7] },
+  { name: '7th', intervals: [0, 4, 7, 10] },
+  { name: 'sus4', intervals: [0, 5, 7] },
+  { name: 'add9', intervals: [0, 4, 7, 14] }
 ];
-const FREE_CHORDS = { major:[0,4,7], minor:[0,3,7], maj7:[0,4,7,11], '7':[0,4,7,10], sus4:[0,5,7], add9:[0,4,7,14], dim:[0,3,6], min7:[0,3,7,10] };
+const FREE_CHORDS = { major: [0, 4, 7], minor: [0, 3, 7], maj7: [0, 4, 7, 11], '7': [0, 4, 7, 10], sus4: [0, 5, 7], add9: [0, 4, 7, 14], dim: [0, 3, 6], min7: [0, 3, 7, 10] };
 
 const DEADZONE = 0.15;             // reduced deadzone for better responsiveness
 const BASE_OCTAVE = 5;             // playback octave (sensible audible range)
@@ -76,7 +76,7 @@ const gainValue = document.getElementById('gainValue');
 const mixValue = document.getElementById('mixValue');
 
 // fill root keys
-NOTE_NAMES.forEach((n,i)=>{ const o=document.createElement('option'); o.value=i; o.text=n; rootSelect.appendChild(o); });
+NOTE_NAMES.forEach((n, i) => { const o = document.createElement('option'); o.value = i; o.text = n; rootSelect.appendChild(o); });
 rootSelect.value = 0; // default C
 
 // Initialize synth controls
@@ -121,7 +121,7 @@ function loadPresetToControls(presetName) {
   releaseSlider.value = Math.round(layer1.release * 1000);
   detuneSlider.value = layer1.detune || 0;
   gainSlider.value = Math.round(layer1.gain * 100);
-  
+
   // Set defaults for controls not in presets
   decaySlider.value = 100;
   sustainSlider.value = 70;
@@ -155,47 +155,47 @@ function getCurrentSynthParams() {
 document.addEventListener('DOMContentLoaded', () => {
   initSynthControls();
   loadPresetToControls('piano');
-  
+
   // Set initial status message for mobile users
   statusEl.textContent = 'Tap wheel to enable audio and play chords';
-  
+
   // Initial wheel draw after a short delay to ensure canvas is ready
   setTimeout(() => {
-    drawWheel(getScale(parseInt(rootSelect.value,10),'major'), -1, []);
+    drawWheel(getScale(parseInt(rootSelect.value, 10), 'major'), -1, []);
   }, 100);
-  
+
   // Sound design panel is already collapsed in HTML
   // Arrow starts as ▼ (down) when collapsed - no rotation needed
-  
+
   // Mobile audio initialization overlay
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                   ('ontouchstart' in window) || 
-                   (navigator.maxTouchPoints > 0);
-  
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    ('ontouchstart' in window) ||
+    (navigator.maxTouchPoints > 0);
+
   if (isMobile) {
     const audioInitOverlay = document.getElementById('audioInitOverlay');
     const audioInitBtn = document.getElementById('audioInitBtn');
-    
+
     // Show the overlay on mobile
     audioInitOverlay.style.display = 'flex';
-    
+
     // Handle audio initialization button click
     audioInitBtn.addEventListener('click', async () => {
       try {
         // Initialize audio immediately
         await initAudioOnUserGesture();
-        
+
         // Hide the overlay with a nice fade out
         audioInitOverlay.style.opacity = '0';
         audioInitOverlay.style.transform = 'scale(0.9)';
-        
+
         setTimeout(() => {
           audioInitOverlay.style.display = 'none';
         }, 300);
-        
+
         // Update status message
         statusEl.textContent = 'Audio ready! Tap wheel to play chords';
-        
+
       } catch (error) {
         // Failed to initialize audio
         audioInitBtn.textContent = 'Try Again';
@@ -212,11 +212,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const rect = wheel.getBoundingClientRect();
     const centerX = wheel.width / 2;
     const centerY = wheel.height / 2;
-    
+
     // Convert position to canvas coordinates
     mouseX = ((clientX - rect.left) / rect.width) * wheel.width - centerX;
     mouseY = ((clientY - rect.top) / rect.height) * wheel.height - centerY;
-    
+
     // Normalize to gamepad-like coordinates (-1 to 1)
     mouseX = mouseX / (wheel.width / 2);
     mouseY = mouseY / (wheel.height / 2);
@@ -226,42 +226,42 @@ document.addEventListener('DOMContentLoaded', () => {
   wheel.addEventListener('mousemove', (e) => {
     updatePosition(e.clientX, e.clientY);
   });
-  
+
   wheel.addEventListener('mousedown', (e) => {
     e.preventDefault();
     mouseDown = true;
-    
+
     // Initialize audio on first click (simple)
     if (!audioInitialized) {
       initAudioOnUserGesture();
     }
   });
-  
+
   wheel.addEventListener('mouseup', (e) => {
     e.preventDefault();
     mouseDown = false;
   });
-  
+
   wheel.addEventListener('mouseleave', () => {
     mouseDown = false;
   });
-  
+
   // Touch events for mobile devices
   wheel.addEventListener('touchstart', (e) => {
     e.preventDefault(); // Prevent scrolling and other touch behaviors
-    
+
     if (e.touches.length > 0) {
       const touch = e.touches[0];
       updatePosition(touch.clientX, touch.clientY);
       touchDown = true;
-      
+
       // Initialize audio on first touch if needed
       if (!audioInitialized) {
         initAudioOnUserGesture();
       }
     }
   });
-  
+
   wheel.addEventListener('touchmove', (e) => {
     e.preventDefault(); // Prevent scrolling
     if (e.touches.length > 0) {
@@ -269,11 +269,11 @@ document.addEventListener('DOMContentLoaded', () => {
       updatePosition(touch.clientX, touch.clientY);
     }
   });
-  
+
   wheel.addEventListener('touchend', (e) => {
     e.preventDefault();
     touchDown = false;
-    
+
     // Force stop any playing voices immediately on touch end
     if (playing) {
       stopVoices();
@@ -281,11 +281,11 @@ document.addEventListener('DOMContentLoaded', () => {
       lastPlayed = [];
     }
   });
-  
+
   wheel.addEventListener('touchcancel', (e) => {
     e.preventDefault();
     touchDown = false;
-    
+
     // Force stop any playing voices immediately on touch cancel
     if (playing) {
       stopVoices();
@@ -293,153 +293,153 @@ document.addEventListener('DOMContentLoaded', () => {
       lastPlayed = [];
     }
   });
-  
+
   // Mobile button controls
   const mobile7th = document.getElementById('mobile7th');
   const mobile9th = document.getElementById('mobile9th');
   const mobileOctUp = document.getElementById('mobileOctUp');
   const mobileOctDown = document.getElementById('mobileOctDown');
-  
+
   // Hold-style mobile button handlers
   function handleMobileButtonStart(stateKey, button) {
     mobileState[stateKey] = true;
     button.classList.add('active');
-    
+
     // Initialize audio on first mobile button touch (simple)
     if (!audioInitialized) {
       initAudioOnUserGesture();
     }
   }
-  
+
   function handleMobileButtonEnd(stateKey, button) {
     mobileState[stateKey] = false;
     button.classList.remove('active');
   }
-  
+
   // 7th button hold handlers
   mobile7th.addEventListener('touchstart', (e) => {
     e.preventDefault();
     handleMobileButtonStart('seventh', mobile7th);
   });
-  
+
   mobile7th.addEventListener('touchend', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('seventh', mobile7th);
   });
-  
+
   mobile7th.addEventListener('touchcancel', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('seventh', mobile7th);
   });
-  
+
   // 9th button hold handlers
   mobile9th.addEventListener('touchstart', (e) => {
     e.preventDefault();
     handleMobileButtonStart('ninth', mobile9th);
   });
-  
+
   mobile9th.addEventListener('touchend', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('ninth', mobile9th);
   });
-  
+
   mobile9th.addEventListener('touchcancel', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('ninth', mobile9th);
   });
-  
+
   // Octave up button hold handlers
   mobileOctUp.addEventListener('touchstart', (e) => {
     e.preventDefault();
     handleMobileButtonStart('octaveUp', mobileOctUp);
   });
-  
+
   mobileOctUp.addEventListener('touchend', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('octaveUp', mobileOctUp);
   });
-  
+
   mobileOctUp.addEventListener('touchcancel', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('octaveUp', mobileOctUp);
   });
-  
+
   // Octave down button hold handlers
   mobileOctDown.addEventListener('touchstart', (e) => {
     e.preventDefault();
     handleMobileButtonStart('octaveDown', mobileOctDown);
   });
-  
+
   mobileOctDown.addEventListener('touchend', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('octaveDown', mobileOctDown);
   });
-  
+
   mobileOctDown.addEventListener('touchcancel', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('octaveDown', mobileOctDown);
   });
-  
+
   // Also handle mouse events for desktop testing
   mobile7th.addEventListener('mousedown', (e) => {
     e.preventDefault();
     handleMobileButtonStart('seventh', mobile7th);
   });
-  
+
   mobile7th.addEventListener('mouseup', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('seventh', mobile7th);
   });
-  
+
   mobile7th.addEventListener('mouseleave', (e) => {
     handleMobileButtonEnd('seventh', mobile7th);
   });
-  
+
   mobile9th.addEventListener('mousedown', (e) => {
     e.preventDefault();
     handleMobileButtonStart('ninth', mobile9th);
   });
-  
+
   mobile9th.addEventListener('mouseup', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('ninth', mobile9th);
   });
-  
+
   mobile9th.addEventListener('mouseleave', (e) => {
     handleMobileButtonEnd('ninth', mobile9th);
   });
-  
+
   mobileOctUp.addEventListener('mousedown', (e) => {
     e.preventDefault();
     handleMobileButtonStart('octaveUp', mobileOctUp);
   });
-  
+
   mobileOctUp.addEventListener('mouseup', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('octaveUp', mobileOctUp);
   });
-  
+
   mobileOctUp.addEventListener('mouseleave', (e) => {
     handleMobileButtonEnd('octaveUp', mobileOctUp);
   });
-  
+
   mobileOctDown.addEventListener('mousedown', (e) => {
     e.preventDefault();
     handleMobileButtonStart('octaveDown', mobileOctDown);
   });
-  
+
   mobileOctDown.addEventListener('mouseup', (e) => {
     e.preventDefault();
     handleMobileButtonEnd('octaveDown', mobileOctDown);
   });
-  
+
   mobileOctDown.addEventListener('mouseleave', (e) => {
     handleMobileButtonEnd('octaveDown', mobileOctDown);
   });
-  
+
   // Keyboard events
   document.addEventListener('keydown', (e) => {
-    switch(e.code) {
+    switch (e.code) {
       case 'Space':
         e.preventDefault();
         keyboardState.space = true;
@@ -460,9 +460,9 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
     }
   });
-  
+
   document.addEventListener('keyup', (e) => {
-    switch(e.code) {
+    switch (e.code) {
       case 'Space':
         keyboardState.space = false;
         break;
@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function toggleSynthControls() {
   const synthContent = document.getElementById('synthControlsContent');
   const synthArrow = document.getElementById('synthDropdownArrow');
-  
+
   synthContent.classList.toggle('collapsed');
   synthArrow.classList.toggle('rotated');
 }
@@ -508,39 +508,39 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let audioRecordingNode = null; // For capturing audio output
 
-function ensureAudio(){ 
-  if(!audioCtx) {
+function ensureAudio() {
+  if (!audioCtx) {
     try {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      
+
       // Create master gain node for safety
-      if(!masterGain) {
+      if (!masterGain) {
         masterGain = audioCtx.createGain();
         masterGain.gain.setValueAtTime(4, audioCtx.currentTime); // User's preferred volume level
         masterGain.connect(audioCtx.destination);
       }
-      
+
       // Setup audio recording capture node
       setupAudioRecording();
-      
+
     } catch (err) {
       // Failed to create AudioContext
       throw err; // Re-throw so caller can handle
     }
   }
-  
+
   // Don't try to resume here - let the caller handle it
 }
 
 // Setup audio recording infrastructure
 function setupAudioRecording() {
   if (!audioCtx || audioRecordingNode) return;
-  
+
   try {
     // Create a gain node specifically for recording (parallel to masterGain)
     audioRecordingNode = audioCtx.createGain();
     audioRecordingNode.gain.setValueAtTime(1.0, audioCtx.currentTime); // Match master gain volume
-    
+
     // Don't connect to destination - this is just for recording
     // The masterGain still handles the actual audio output
   } catch (err) {
@@ -554,32 +554,32 @@ function startAudioRecording() {
     statusEl.textContent = 'Audio context not ready';
     return;
   }
-  
+
   try {
     // Ensure audio recording node exists
     if (!audioRecordingNode) {
       setupAudioRecording();
     }
-    
+
     if (!audioRecordingNode) {
       statusEl.textContent = 'Failed to setup audio recording';
       return;
     }
-    
+
     // Create MediaStreamDestination to capture audio
     const dest = audioCtx.createMediaStreamDestination();
     audioRecordingNode.connect(dest);
-    
+
     // Check MediaRecorder support
     if (!window.MediaRecorder) {
       statusEl.textContent = 'Audio recording not supported in this browser';
       return;
     }
-    
+
     // Setup MediaRecorder with fallback MIME types
     recordedChunks = [];
     let mimeType = 'audio/webm;codecs=opus';
-    
+
     if (!MediaRecorder.isTypeSupported(mimeType)) {
       mimeType = 'audio/webm';
       if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -590,34 +590,34 @@ function startAudioRecording() {
         }
       }
     }
-    
+
     mediaRecorder = new MediaRecorder(dest.stream, { mimeType });
-    
+
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         recordedChunks.push(event.data);
       }
     };
-    
+
     mediaRecorder.onstop = () => {
       // Convert and download audio
       convertAndDownloadAudio();
     };
-    
+
     mediaRecorder.onerror = (event) => {
       statusEl.textContent = 'Recording error: ' + event.error;
       stopAudioRecording();
     };
-    
+
     // Start recording
     mediaRecorder.start(1000); // Collect data every second
     audioRecording = true;
-    
+
     startAudioRecBtn.disabled = true;
     stopAudioRecBtn.disabled = false;
     audioRecLed.classList.add('recording');
     statusEl.textContent = 'Recording audio...';
-    
+
   } catch (err) {
     statusEl.textContent = 'Audio recording failed: ' + err.message;
   }
@@ -626,16 +626,16 @@ function startAudioRecording() {
 // Stop audio recording
 function stopAudioRecording() {
   if (!audioRecording || !mediaRecorder) return;
-  
+
   try {
     mediaRecorder.stop();
     audioRecording = false;
-    
+
     startAudioRecBtn.disabled = false;
     stopAudioRecBtn.disabled = true;
     audioRecLed.classList.remove('recording');
     statusEl.textContent = 'Processing audio...';
-    
+
   } catch (err) {
     statusEl.textContent = 'Error stopping audio recording';
     audioRecording = false;
@@ -649,7 +649,7 @@ function stopAudioRecording() {
 function createWAVHeader(sampleRate, numChannels, numSamples) {
   const buffer = new ArrayBuffer(44);
   const view = new DataView(buffer);
-  
+
   // RIFF identifier
   writeString(view, 0, 'RIFF');
   // File length
@@ -676,7 +676,7 @@ function createWAVHeader(sampleRate, numChannels, numSamples) {
   writeString(view, 36, 'data');
   // Data chunk length
   view.setUint32(40, numSamples * 2, true);
-  
+
   return buffer;
 }
 
@@ -700,23 +700,23 @@ function convertAndDownloadAudio() {
     statusEl.textContent = 'No audio recorded';
     return;
   }
-  
+
   statusEl.textContent = 'Converting to WAV...';
-  
+
   // Create blob from recorded chunks
   const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-  
+
   // Convert WebM to WAV using Web Audio API
   convertWebMToWAV(blob).then((wavBlob) => {
     const url = URL.createObjectURL(wavBlob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ChordRack_audio_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.wav`;
+    a.download = `ChordRack_audio_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.wav`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    
+
     statusEl.textContent = 'WAV file downloaded';
     recordedChunks = [];
   }).catch((err) => {
@@ -725,12 +725,12 @@ function convertAndDownloadAudio() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ChordRack_audio_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.webm`;
+    a.download = `ChordRack_audio_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.webm`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-    
+
     statusEl.textContent = 'WebM file downloaded (WAV conversion failed)';
     recordedChunks = [];
   });
@@ -740,31 +740,31 @@ function convertAndDownloadAudio() {
 async function convertWebMToWAV(webmBlob) {
   return new Promise((resolve, reject) => {
     const fileReader = new FileReader();
-    
-    fileReader.onload = async function(e) {
+
+    fileReader.onload = async function (e) {
       try {
         // Decode the audio data
         const arrayBuffer = e.target.result;
         const audioData = await audioCtx.decodeAudioData(arrayBuffer);
-        
+
         // Get audio properties
         const sampleRate = audioData.sampleRate;
         const numChannels = audioData.numberOfChannels;
         const length = audioData.length;
-        
+
         // Create WAV header
         const headerBuffer = createWAVHeader(sampleRate, numChannels, length * numChannels);
-        
+
         // Convert audio data to Int16 PCM
         const wavBuffer = new ArrayBuffer(headerBuffer.byteLength + length * numChannels * 2);
         const wavView = new DataView(wavBuffer);
-        
+
         // Copy header
         new Uint8Array(wavBuffer, 0, headerBuffer.byteLength).set(new Uint8Array(headerBuffer));
-        
+
         // Convert and copy audio data
         let offset = headerBuffer.byteLength;
-        
+
         if (numChannels === 1) {
           // Mono - simple conversion
           const channelData = audioData.getChannelData(0);
@@ -773,29 +773,29 @@ async function convertWebMToWAV(webmBlob) {
           // Stereo - properly interleave left and right channels
           const leftChannel = audioData.getChannelData(0);
           const rightChannel = numChannels > 1 ? audioData.getChannelData(1) : leftChannel; // Use left channel for both if no right channel
-          
+
           for (let i = 0; i < leftChannel.length; i++) {
             // Left channel sample
             const leftSample = Math.max(-1, Math.min(1, leftChannel[i]));
             wavView.setInt16(offset, leftSample < 0 ? leftSample * 0x8000 : leftSample * 0x7FFF, true);
             offset += 2;
-            
+
             // Right channel sample
             const rightSample = Math.max(-1, Math.min(1, rightChannel[i]));
             wavView.setInt16(offset, rightSample < 0 ? rightSample * 0x8000 : rightSample * 0x7FFF, true);
             offset += 2;
           }
         }
-        
+
         // Create WAV blob
         const wavBlob = new Blob([wavBuffer], { type: 'audio/wav' });
         resolve(wavBlob);
-        
+
       } catch (error) {
         reject(error);
       }
     };
-    
+
     fileReader.onerror = () => reject(new Error('Failed to read audio file'));
     fileReader.readAsArrayBuffer(webmBlob);
   });
@@ -805,28 +805,28 @@ async function convertWebMToWAV(webmBlob) {
 function initAudioOnUserGesture() {
   if (!audioInitialized && !audioInitializing) {
     audioInitializing = true;
-    
+
     try {
       ensureAudio();
-      
+
       if (audioCtx && audioCtx.state === 'suspended') {
-        
+
         // Set a definite timeout to reset flag - this WILL fire regardless
         setTimeout(() => {
           if (audioInitializing) {
             audioInitializing = false;
           }
         }, 500); // Short timeout
-        
+
         audioCtx.resume().then(() => {
           audioInitialized = true;
           audioInitializing = false;
           statusEl.textContent = 'Audio ready - continue playing!';
-          
+
           // Remove gamepad audio prompt if it exists
           const prompt = document.querySelector('.gamepad-audio-prompt');
           if (prompt) prompt.remove();
-          
+
         }).catch(err => {
           audioInitializing = false;
           statusEl.textContent = 'Audio initialization failed - try refreshing';
@@ -835,11 +835,11 @@ function initAudioOnUserGesture() {
         audioInitialized = true;
         audioInitializing = false;
         statusEl.textContent = 'Audio ready - play chords!';
-        
+
         // Remove gamepad audio prompt if it exists
         const prompt = document.querySelector('.gamepad-audio-prompt');
         if (prompt) prompt.remove();
-        
+
       } else {
         audioInitializing = false;
         statusEl.textContent = 'Audio context creation failed';
@@ -857,7 +857,7 @@ let gamepadAudioPromptShown = false; // Track if we've shown the gamepad audio p
 function showGamepadAudioPrompt() {
   if (gamepadAudioPromptShown) return;
   gamepadAudioPromptShown = true;
-  
+
   // Create backdrop overlay
   const backdrop = document.createElement('div');
   backdrop.className = 'gamepad-audio-backdrop';
@@ -873,7 +873,7 @@ function showGamepadAudioPrompt() {
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
   `;
-  
+
   // Create the prompt modal
   const prompt = document.createElement('div');
   prompt.className = 'gamepad-audio-prompt';
@@ -899,7 +899,7 @@ function showGamepadAudioPrompt() {
     opacity: 0;
     transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
   `;
-  
+
   prompt.innerHTML = `
     <div style="font-size: 32px; margin-bottom: 15px;">🎮</div>
     <div style="font-size: 20px; margin-bottom: 10px;">Audio Setup Required</div>
@@ -907,26 +907,26 @@ function showGamepadAudioPrompt() {
       Click here to enable sound<br>for your gamepad
     </div>
   `;
-  
+
   document.body.appendChild(backdrop);
   document.body.appendChild(prompt);
-  
+
   // Animate in
   requestAnimationFrame(() => {
     backdrop.style.opacity = '1';
     prompt.style.opacity = '1';
     prompt.style.transform = 'translate(-50%, -50%) scale(1)';
   });
-  
+
   // Initialize audio when clicked
   const handleClick = (e) => {
     e.stopPropagation();
-    
+
     // Animate out
     backdrop.style.opacity = '0';
     prompt.style.opacity = '0';
     prompt.style.transform = 'translate(-50%, -50%) scale(0.9)';
-    
+
     // Remove after animation
     setTimeout(() => {
       initAudioOnUserGesture();
@@ -934,30 +934,30 @@ function showGamepadAudioPrompt() {
       if (prompt.parentNode) prompt.remove();
     }, 300);
   };
-  
+
   // Only listen for clicks on the prompt itself, not globally
   prompt.addEventListener('click', handleClick);
   backdrop.addEventListener('click', handleClick); // Also allow clicking backdrop
-  
+
   // Also allow any key press to trigger (but not interfere with wheel)
   const handleKey = (e) => {
     // Animate out
     backdrop.style.opacity = '0';
     prompt.style.opacity = '0';
     prompt.style.transform = 'translate(-50%, -50%) scale(0.9)';
-    
+
     // Remove after animation
     setTimeout(() => {
       initAudioOnUserGesture();
       if (backdrop.parentNode) backdrop.remove();
       if (prompt.parentNode) prompt.remove();
     }, 300);
-    
+
     document.removeEventListener('keydown', handleKey);
   };
-  
+
   document.addEventListener('keydown', handleKey, { once: true });
-  
+
   // Auto-remove after 12 seconds if no interaction
   setTimeout(() => {
     if (backdrop.parentNode || prompt.parentNode) {
@@ -965,7 +965,7 @@ function showGamepadAudioPrompt() {
       backdrop.style.opacity = '0';
       prompt.style.opacity = '0';
       prompt.style.transform = 'translate(-50%, -50%) scale(0.9)';
-      
+
       setTimeout(() => {
         if (backdrop.parentNode) backdrop.remove();
         if (prompt.parentNode) prompt.remove();
@@ -975,8 +975,8 @@ function showGamepadAudioPrompt() {
   }, 12000);
 }
 let activeVoices = [];  // {osc,gain, midi}
-function noteToFreq(m){ return 440 * Math.pow(2,(m-69)/12); }
-function midiFromPC(pc, octave=BASE_OCTAVE){ return 12*octave + (pc % 12); }
+function noteToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+function midiFromPC(pc, octave = BASE_OCTAVE) { return 12 * octave + (pc % 12); }
 
 // Sound presets for different synthesis types
 const SOUND_PRESETS = {
@@ -988,7 +988,7 @@ const SOUND_PRESETS = {
     ]
   },
   warm: {
-    name: 'Warm Pads', 
+    name: 'Warm Pads',
     layers: [
       { type: 'sawtooth', detune: 0, gain: 0.05, attack: 1.2, release: 2.0 },
       { type: 'sawtooth', detune: -7, gain: 0.04, attack: 1.5, release: 2.2 },
@@ -1026,16 +1026,16 @@ const SOUND_PRESETS = {
 };
 
 // Enhanced synthesis engine with custom controls
-function startVoices(midiNotes){
-  ensureAudio(); 
-  
+function startVoices(midiNotes) {
+  ensureAudio();
+
   // Simple check: if audio context isn't running, just return false (no retries)
   if (!audioCtx || audioCtx.state !== 'running') {
     return false;
   }
-  
+
   // If there are active voices, stop them and add a tiny delay for smooth transition
-  if(activeVoices.length > 0) {
+  if (activeVoices.length > 0) {
     stopVoices();
     setTimeout(() => {
       createNewVoices(midiNotes);
@@ -1043,7 +1043,7 @@ function startVoices(midiNotes){
   } else {
     createNewVoices(midiNotes);
   }
-  
+
   return true; // Successfully started
 }
 
@@ -1052,87 +1052,87 @@ function createNewVoices(midiNotes) {
   if (voiceCreationInProgress) {
     return;
   }
-  
+
   // Ensure any previous voices are completely stopped
-  if(activeVoices.length > 0) {
+  if (activeVoices.length > 0) {
     stopVoices();
     // Wait a moment for cleanup
     setTimeout(() => createNewVoices(midiNotes), 10);
     return;
   }
-  
+
   voiceCreationInProgress = true;
-  
+
   const now = audioCtx.currentTime;
   const params = getCurrentSynthParams();
-  
+
   activeVoices = [];
-  midiNotes.forEach((m,i)=>{
+  midiNotes.forEach((m, i) => {
     const voiceOscillators = [];
     const voiceGains = [];
-    
+
     // Calculate octave compensation for volume
     const octave = Math.floor(m / 12);
     const baseOctave = 5; // BASE_OCTAVE
     const octaveDiff = octave - baseOctave;
     const clampedDiff = Math.max(-2, Math.min(2, octaveDiff));
     const octaveGainMultiplier = Math.pow(1.4, -clampedDiff);
-    
+
     // Layer 1 - Main oscillator with consistent gain levels
     const osc1 = audioCtx.createOscillator();
     const gain1 = audioCtx.createGain();
-    
+
     osc1.type = params.waveType;
-    osc1.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, params.detune/1200), now);
-    
+    osc1.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, params.detune / 1200), now);
+
     // Start from silence
     gain1.gain.setValueAtTime(0.000001, now);
-    
+
     osc1.connect(gain1);
     gain1.connect(masterGain);
     if (audioRecordingNode) {
       gain1.connect(audioRecordingNode);
     }
-    
+
     // ADSR Envelope with fixed, consistent levels
     const safePeakGain = Math.min(0.15, params.gain * octaveGainMultiplier * 0.5); // Restored original levels
     const sustainLevel = safePeakGain * params.sustain;
-    
+
     gain1.gain.linearRampToValueAtTime(safePeakGain, now + params.attack);
     gain1.gain.linearRampToValueAtTime(sustainLevel, now + params.attack + params.decay);
-    
+
     osc1.start(now);
     voiceOscillators.push(osc1);
     voiceGains.push(gain1);
-    
+
     // Layer 2 - Secondary oscillator (if mix > 0) with even safer levels
     if (params.mix > 0) {
       const osc2 = audioCtx.createOscillator();
       const gain2 = audioCtx.createGain();
-      
+
       const layer2Wave = params.waveType === 'sine' ? 'triangle' : 'sine';
       osc2.type = layer2Wave;
-      osc2.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, (params.detune + 3)/1200), now);
+      osc2.frequency.setValueAtTime(noteToFreq(m) * Math.pow(2, (params.detune + 3) / 1200), now);
       gain2.gain.setValueAtTime(0.000001, now);
-      
+
       osc2.connect(gain2);
       gain2.connect(masterGain); // Connect to master gain instead of destination
       if (audioRecordingNode) {
         gain2.connect(audioRecordingNode);
       }
-      
+
       // Layer 2 envelope with very conservative levels
       const safePeakGain2 = Math.min(0.05, safePeakGain * params.mix * 0.4); // Even lower max
       const sustainLevel2 = safePeakGain2 * params.sustain;
-      
+
       gain2.gain.linearRampToValueAtTime(safePeakGain2, now + params.attack);
       gain2.gain.linearRampToValueAtTime(sustainLevel2, now + params.attack + params.decay);
-      
+
       osc2.start(now);
       voiceOscillators.push(osc2);
       voiceGains.push(gain2);
     }
-    
+
     activeVoices.push({
       oscillators: voiceOscillators,
       gains: voiceGains,
@@ -1140,45 +1140,45 @@ function createNewVoices(midiNotes) {
       params: params
     });
   });
-  
+
   // Reset the voice creation flag
   voiceCreationInProgress = false;
 }
 
-function morphVoices(newMidis){
+function morphVoices(newMidis) {
   ensureAudio();
-  if(activeVoices.length === newMidis.length){
+  if (activeVoices.length === newMidis.length) {
     const now = audioCtx.currentTime;
     const params = getCurrentSynthParams();
-    
-    for(let i=0;i<newMidis.length;i++){
+
+    for (let i = 0; i < newMidis.length; i++) {
       try {
         const voice = activeVoices[i];
         voice.oscillators.forEach((osc, oscIdx) => {
-          if(osc) {
+          if (osc) {
             const detuneOffset = oscIdx === 1 ? 3 : 0; // Layer 2 gets +3 cents
-            const newFreq = noteToFreq(newMidis[i]) * Math.pow(2, (params.detune + detuneOffset)/1200);
-            osc.frequency.exponentialRampToValueAtTime(newFreq, now+0.08);
+            const newFreq = noteToFreq(newMidis[i]) * Math.pow(2, (params.detune + detuneOffset) / 1200);
+            osc.frequency.exponentialRampToValueAtTime(newFreq, now + 0.08);
           }
         });
         voice.midi = newMidis[i];
-      } catch(e){}
+      } catch (e) { }
     }
   } else {
     startVoices(newMidis);
   }
 }
 
-function stopVoices(){
-  if(!audioCtx) return;
+function stopVoices() {
+  if (!audioCtx) return;
   const now = audioCtx.currentTime;
   const params = getCurrentSynthParams();
-  
+
   // Use proper fade-out to prevent clicking/chopping
-  activeVoices.forEach(voice=>{
-    try{
+  activeVoices.forEach(voice => {
+    try {
       voice.gains.forEach((gain) => {
-        if(gain) {
+        if (gain) {
           try {
             // Cancel any scheduled values and start smooth fade
             gain.gain.cancelScheduledValues(now);
@@ -1186,28 +1186,28 @@ function stopVoices(){
             // Smooth fade to zero over release time
             const fadeTime = Math.min(params.release, 0.3); // Cap at 300ms for responsiveness
             gain.gain.exponentialRampToValueAtTime(0.0001, now + fadeTime);
-          } catch(e) {
+          } catch (e) {
             // Error fading gain
           }
         }
       });
-      
+
       // Schedule oscillator stop after fade completes
       voice.oscillators.forEach((osc) => {
-        if(osc) {
+        if (osc) {
           try {
             const fadeTime = Math.min(params.release, 0.3);
             osc.stop(now + fadeTime + 0.01); // Small buffer after fade
-          } catch(e) {
+          } catch (e) {
             // Error stopping oscillator
           }
         }
       });
-    } catch(e){
+    } catch (e) {
       // Error in stopVoices
     }
   });
-  
+
   // Clear the array immediately
   activeVoices = [];
 }
@@ -1216,63 +1216,63 @@ function stopVoices(){
 let recording = false;
 let recStart = 0;
 let recEvents = []; // {type:'on'|'off', note, time(ms), vel}
-function recordOn(notes, vel=100){
-  if(!recording) return;
+function recordOn(notes, vel = 100) {
+  if (!recording) return;
   const t = Math.round(performance.now() - recStart);
-  notes.forEach(n => recEvents.push({type:'on', note:n, time:t, vel}));
+  notes.forEach(n => recEvents.push({ type: 'on', note: n, time: t, vel }));
 }
-function recordOff(notes){
-  if(!recording) return;
+function recordOff(notes) {
+  if (!recording) return;
   const t = Math.round(performance.now() - recStart);
-  notes.forEach(n => recEvents.push({type:'off', note:n, time:t, vel:0}));
+  notes.forEach(n => recEvents.push({ type: 'off', note: n, time: t, vel: 0 }));
 }
-function writeVarLen(value){
-  const bytes=[];
+function writeVarLen(value) {
+  const bytes = [];
   let buffer = value & 0x7F;
   value >>= 7;
-  while(value){
+  while (value) {
     bytes.unshift((value & 0x7F) | 0x80);
     value >>= 7;
   }
   bytes.push(buffer);
   return bytes;
 }
-function buildMidiFromEvents(events, opts={tpq:TPQ, tempo:500000}){
+function buildMidiFromEvents(events, opts = { tpq: TPQ, tempo: 500000 }) {
   const tpq = opts.tpq, tempo = opts.tempo;
-  const ticksPerMs = tpq / (tempo/1000);
-  events.sort((a,b)=>a.time-b.time);
+  const ticksPerMs = tpq / (tempo / 1000);
+  events.sort((a, b) => a.time - b.time);
   let lastTick = 0;
   let data = [];
-  data.push(...writeVarLen(0)); data.push(0xFF,0x51,0x03, (tempo>>16)&0xFF,(tempo>>8)&0xFF,tempo&0xFF);
-  data.push(...writeVarLen(0)); data.push(0xC0,0x00);
-  for(const ev of events){
+  data.push(...writeVarLen(0)); data.push(0xFF, 0x51, 0x03, (tempo >> 16) & 0xFF, (tempo >> 8) & 0xFF, tempo & 0xFF);
+  data.push(...writeVarLen(0)); data.push(0xC0, 0x00);
+  for (const ev of events) {
     // Validate MIDI note range (0-127)
-    if(ev.note < 0 || ev.note > 127) {
+    if (ev.note < 0 || ev.note > 127) {
       continue;
     }
-    
+
     const tick = Math.round(ev.time * ticksPerMs);
     const delta = Math.max(0, tick - lastTick);
     data.push(...writeVarLen(delta));
-    if(ev.type==='on') data.push(0x90, ev.note & 0x7F, ev.vel & 0x7F);
+    if (ev.type === 'on') data.push(0x90, ev.note & 0x7F, ev.vel & 0x7F);
     else data.push(0x80, ev.note & 0x7F, ev.vel & 0x7F);
     lastTick = tick;
   }
-  data.push(...writeVarLen(0)); data.push(0xFF,0x2F,0x00);
-  const header = [0x4D,0x54,0x68,0x64, 0,0,0,6, 0,0, 0,1, (TPQ>>8)&0xFF, TPQ&0xFF];
+  data.push(...writeVarLen(0)); data.push(0xFF, 0x2F, 0x00);
+  const header = [0x4D, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, (TPQ >> 8) & 0xFF, TPQ & 0xFF];
   const trackLen = data.length;
-  const trackHeader = [0x4D,0x54,0x72,0x6B, (trackLen>>24)&0xFF,(trackLen>>16)&0xFF,(trackLen>>8)&0xFF, trackLen&0xFF];
+  const trackHeader = [0x4D, 0x54, 0x72, 0x6B, (trackLen >> 24) & 0xFF, (trackLen >> 16) & 0xFF, (trackLen >> 8) & 0xFF, trackLen & 0xFF];
   return new Uint8Array([...header, ...trackHeader, ...data]).buffer;
 }
 
 // ---------- wheel drawing with colored tonic/3rd/5th ----------
-function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
-  wctx.clearRect(0,0,wheel.width,wheel.height);
-  const cx = wheel.width/2, cy = wheel.height/2;
-  const outerRadius = Math.min(cx,cy) - 20;
+function drawWheel(scalePCs, activeIdx, activeChordPCs = []) {
+  wctx.clearRect(0, 0, wheel.width, wheel.height);
+  const cx = wheel.width / 2, cy = wheel.height / 2;
+  const outerRadius = Math.min(cx, cy) - 20;
   const innerRadius = 60;
   const sliceAngle = (Math.PI * 2) / scalePCs.length;
-  
+
   // Vintage analog equipment background with brushed metal effect
   const bgGradient = wctx.createRadialGradient(cx, cy, 0, cx, cy, outerRadius);
   bgGradient.addColorStop(0, '#2a2a2a');    // Dark metal center
@@ -1281,11 +1281,11 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
   bgGradient.addColorStop(1, '#000000');    // Pure black edge
   wctx.fillStyle = bgGradient;
   wctx.fillRect(0, 0, wheel.width, wheel.height);
-  
+
   // Add subtle brushed metal texture
   wctx.save();
   wctx.globalAlpha = 0.1;
-  for(let i = 0; i < 100; i++){
+  for (let i = 0; i < 100; i++) {
     wctx.strokeStyle = i % 2 ? '#444' : '#333';
     wctx.lineWidth = 0.5;
     wctx.beginPath();
@@ -1294,13 +1294,13 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
     wctx.stroke();
   }
   wctx.restore();
-  
+
   // Draw each slice with vintage VU meter styling
-  for(let i = 0; i < scalePCs.length; i++){
-    const startAngle = (i * sliceAngle) - Math.PI/2;
-    const endAngle = ((i + 1) * sliceAngle) - Math.PI/2;
-    const midAngle = startAngle + sliceAngle/2;
-    
+  for (let i = 0; i < scalePCs.length; i++) {
+    const startAngle = (i * sliceAngle) - Math.PI / 2;
+    const endAngle = ((i + 1) * sliceAngle) - Math.PI / 2;
+    const midAngle = startAngle + sliceAngle / 2;
+
     // Vintage analog equipment colors
     let isActive = false;
     let glowColor = '#444';
@@ -1308,50 +1308,50 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
     let noteType = 'inactive';
 
     // Check for chord matches when RT button is held (activeChordPCs has notes)
-    if(activeChordPCs && activeChordPCs.length > 0){
+    if (activeChordPCs && activeChordPCs.length > 0) {
       const pc = scalePCs[i] % 12;
       const tonic = activeChordPCs[0] % 12;
       const third = (activeChordPCs[1] !== undefined) ? (activeChordPCs[1] % 12) : null;
       const fifth = (activeChordPCs[2] !== undefined) ? (activeChordPCs[2] % 12) : null;
-      
+
       const pcNormalized = ((pc % 12) + 12) % 12;
       const tonicNormalized = ((tonic % 12) + 12) % 12;
       const thirdNormalized = third !== null ? ((third % 12) + 12) % 12 : null;
       const fifthNormalized = fifth !== null ? ((fifth % 12) + 12) % 12 : null;
-      
-      if(pcNormalized === tonicNormalized) {
+
+      if (pcNormalized === tonicNormalized) {
         isActive = true;
         noteType = 'tonic';
         glowColor = '#ff6b35';  // Warm orange for tonic (vintage amp glow)
         fillColor = '#ff8c65';  // Lighter orange
-      } else if(thirdNormalized !== null && pcNormalized === thirdNormalized) {
+      } else if (thirdNormalized !== null && pcNormalized === thirdNormalized) {
         isActive = true;
         noteType = 'third';
         glowColor = '#ffbf00';  // Amber LED color for third
         fillColor = '#ffd633';  // Lighter amber
-      } else if(fifthNormalized !== null && pcNormalized === fifthNormalized) {
+      } else if (fifthNormalized !== null && pcNormalized === fifthNormalized) {
         isActive = true;
         noteType = 'fifth';
         glowColor = '#4caf50';  // Green LED for fifth
         fillColor = '#66bb6a';  // Lighter green
       }
-    } else if(activeIdx >= 0) {
+    } else if (activeIdx >= 0) {
       // Simple selection highlighting when not holding RT button
-      if(i === activeIdx) {
+      if (i === activeIdx) {
         isActive = true;
         noteType = 'selected';
         glowColor = '#ff6b35';  // Warm orange for selected note
         fillColor = '#ff8c65';  // Lighter orange
       }
     }
-    
+
     // Create slice path
     wctx.beginPath();
     wctx.arc(cx, cy, outerRadius, startAngle, endAngle);
     wctx.arc(cx, cy, innerRadius, endAngle, startAngle, true);
     wctx.closePath();
-    
-    if(isActive) {
+
+    if (isActive) {
       // Simple active slice fill - bright but no inner glow effects
       const activeGradient = wctx.createRadialGradient(cx, cy, innerRadius, cx, cy, outerRadius);
       activeGradient.addColorStop(0, fillColor + 'CC');  // Bright center  
@@ -1359,76 +1359,76 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
       activeGradient.addColorStop(1, fillColor + '88');   // Dimmer edge
       wctx.fillStyle = activeGradient;
       wctx.fill();
-      
-      
+
+
       // Use consistent, subtle intensity for all active notes
       const baseIntensity = 1.2; // Fixed subtle intensity for clean neon look
 
     } else {
       // Inactive slice with brushed metal look
-      const inactiveGradient = wctx.createLinearGradient(cx-outerRadius, cy-outerRadius, cx+outerRadius, cy+outerRadius);
+      const inactiveGradient = wctx.createLinearGradient(cx - outerRadius, cy - outerRadius, cx + outerRadius, cy + outerRadius);
       inactiveGradient.addColorStop(0, '#3a3a3a');  // Light metal
       inactiveGradient.addColorStop(0.5, '#2a2a2a'); // Medium metal
       inactiveGradient.addColorStop(1, '#1a1a1a');   // Dark metal
       wctx.fillStyle = inactiveGradient;
       wctx.fill();
     }
-    
+
     // Vintage equipment style borders
     wctx.strokeStyle = isActive ? glowColor + 'CC' : '#555';
     wctx.lineWidth = isActive ? 2 : 1;
     wctx.stroke();
-    
+
     // Note label with vintage equipment font styling
     const labelRadius = (outerRadius + innerRadius) / 2;
     const labelX = cx + Math.cos(midAngle) * labelRadius;
     const labelY = cy + Math.sin(midAngle) * labelRadius;
-    
+
     // Roman numerals positioned closer to center for better readability
     const romanRadius = innerRadius + 15; // Even closer to center
     const romanX = cx + Math.cos(midAngle) * romanRadius;
     const romanY = cy + Math.sin(midAngle) * romanRadius;
-    
+
     // Roman numerals for chord degrees - consistent uppercase format
     const currentScale = scaleSelect.value; // Get current scale (major/minor)
     const majorRomanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
     const minorRomanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-    
+
     const romanNumeral = currentScale === 'major' ? majorRomanNumerals[i] : minorRomanNumerals[i];
     const noteName = NOTE_NAMES[scalePCs[i] % 12];
-    
+
     wctx.save();
     wctx.fillStyle = isActive ? '#ffffff' : '#ccc';
     wctx.font = isActive ? 'bold 15px Arial' : '13px Arial';
     wctx.textAlign = 'center';
     wctx.textBaseline = 'middle';
-    
-    if(isActive) {
+
+    if (isActive) {
       // Vintage LED-style text glow for note name
       wctx.shadowColor = glowColor;
       wctx.shadowBlur = 6;
       wctx.fillText(noteName, labelX, labelY);
-      
+
       // Second glow layer
       wctx.shadowBlur = 12;
       wctx.fillText(noteName, labelX, labelY);
-      
+
       // Sharp core text for note name
       wctx.shadowBlur = 0;
       wctx.fillStyle = '#ffffff';
       wctx.fillText(noteName, labelX, labelY);
-      
+
       // Roman numeral closer to center with glow
       wctx.shadowColor = glowColor;
       wctx.shadowBlur = 6;
       wctx.font = isActive ? 'bold 14px Arial' : '12px Arial';
       wctx.fillStyle = isActive ? '#ffcc88' : '#aaa';
       wctx.fillText(romanNumeral, romanX, romanY);
-      
+
       // Second glow layer for roman numeral
       wctx.shadowBlur = 12;
       wctx.fillText(romanNumeral, romanX, romanY);
-      
+
       // Sharp core text for roman numeral
       wctx.shadowBlur = 0;
       wctx.fillStyle = '#ffcc88';
@@ -1436,33 +1436,33 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
     } else {
       // Inactive text - note name at normal position
       wctx.fillText(noteName, labelX, labelY);
-      
+
       // Roman numeral closer to center for inactive state
       wctx.font = '12px Arial';
       wctx.fillStyle = '#aaa';
       wctx.fillText(romanNumeral, romanX, romanY);
     }
-    
+
     wctx.restore();
   }
-  
+
   // Center circle with vintage analog equipment styling
   const centerGradient = wctx.createRadialGradient(cx, cy, 0, cx, cy, innerRadius);
   centerGradient.addColorStop(0, '#4a4a4a');  // Light metal center
   centerGradient.addColorStop(0.3, '#3a3a3a'); // Medium metal
   centerGradient.addColorStop(0.7, '#2a2a2a'); // Dark metal
   centerGradient.addColorStop(1, '#1a1a1a');   // Darkest edge
-  
+
   wctx.beginPath();
   wctx.arc(cx, cy, innerRadius, 0, Math.PI * 2);
   wctx.fillStyle = centerGradient;
   wctx.fill();
-  
+
   // Center border with vintage metallic accent
   wctx.strokeStyle = '#666';
   wctx.lineWidth = 2;
   wctx.stroke();
-  
+
   // Add subtle inner shadow for depth
   wctx.save();
   wctx.strokeStyle = '#222';
@@ -1472,161 +1472,179 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs=[]){
 }
 
 // ---------- utility ----------
-function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 // ---------- gamepad & mapping (legacy axis from first working variant) ----------
 let gpIndex = null;
 let axisX = 0, axisY = 1; // not used for legacy mapping, but harmless
-let invertX=false, invertY=false;
-let playing=false, lastPlayed=[];
+let invertX = false, invertY = false;
+let playing = false, lastPlayed = [];
+
+// FIX 1 & 2: Use event-driven gamepad connection tracking instead of relying
+// solely on poll-loop scanning. gamepadconnected fires reliably on all browsers
+// after the user interacts with the controller at least once.
+window.addEventListener('gamepadconnected', (e) => {
+  gpIndex = e.gamepad.index;
+  gpLed.classList.add('on');
+  statusEl.textContent = 'Gamepad connected: ' + e.gamepad.id;
+  if (!audioInitialized && !gamepadAudioPromptShown) {
+    showGamepadAudioPrompt();
+  }
+});
+
+window.addEventListener('gamepaddisconnected', (e) => {
+  if (e.gamepad.index === gpIndex) {
+    gpIndex = null;
+    gpLed.classList.remove('on');
+    if (playing) { stopVoices(); playing = false; lastPlayed = []; }
+    statusEl.textContent = 'Gamepad disconnected — using mouse + keyboard';
+  }
+});
 
 // legacy mapping: x = axes[0], y = axes[1] (no inversion)
-function readLegacy(gp){
+function readLegacy(gp) {
   const rawX = (gp.axes[0] !== undefined) ? gp.axes[0] : 0;
   const rawY = (gp.axes[1] !== undefined) ? gp.axes[1] : 0;
-  return {rawX, rawY, adjX: rawX, adjY: rawY}; // no Y inversion to fix directional mapping
+  return { rawX, rawY, adjX: rawX, adjY: rawY }; // no Y inversion to fix directional mapping
 }
 
 // mapping used in the very first variant - fixed for proper continuous movement
-function mapFirstVariant(adjX, adjY, scale){
+function mapFirstVariant(adjX, adjY, scale) {
   // Based on gamepad test code: adjX = right/left, adjY = down/up (inverted)
   // We want: up -> C (top), right -> D/E, down -> F/G, left -> A/B
   // Since adjY is inverted (positive = down), we need to flip it
   // Since directions are mirrored, we also need to flip X
-  
+
   // Calculate angle using standard math coordinates (-adjX = right, -adjY = up)
   let angle = Math.atan2(-adjY, -adjX); // -adjX to fix mirroring, -adjY to convert gamepad coords to math coords
-  
+
   // Rotate by -π/2 to align stick up with wheel top (C)
-  angle = angle - Math.PI/2;
-  
+  angle = angle - Math.PI / 2;
+
   // Normalize to 0-2π range
   if (angle < 0) angle += 2 * Math.PI;
-  
+
   // Map angle to scale degree
   const degree = Math.floor((angle / (2 * Math.PI)) * scale.length) % scale.length;
-  
+
   // Map magnitude to flavors (use distance from center for flavor selection)
   const magnitude = Math.hypot(adjX, adjY);
   const flavorFloat = magnitude * FLAVORS.length;
   const flavor = Math.min(Math.floor(flavorFloat), FLAVORS.length - 1);
-  
-  return {degree, flavor};
+
+  return { degree, flavor };
 }
 
 // free-mode mapping - fixed for smooth circular movement
-function mapFreeFirst(adjX, adjY){
+function mapFreeFirst(adjX, adjY) {
   // Use the same coordinate system as beginner mode
   let angle = Math.atan2(-adjY, -adjX); // -adjX to fix mirroring, -adjY to convert gamepad coords to math coords
-  
+
   // Rotate by -π/2 to align stick up with wheel top
-  angle = angle - Math.PI/2;
-  
+  angle = angle - Math.PI / 2;
+
   // Normalize angle to 0-2π range
   if (angle < 0) angle += 2 * Math.PI;
-  
+
   // Define chord positions around a circle (8 positions)
   const chords = ['major', 'sus4', 'add9', 'maj7', 'minor', 'dim', '7', 'min7'];
   const segmentSize = (2 * Math.PI) / chords.length;
   const chordIndex = Math.floor(angle / segmentSize) % chords.length;
-  
+
   return chords[chordIndex] || 'major';
 }
 
 // diatonic helpers
-function getScale(rootIdx, scaleName){ const base = (scaleName==='major')?MAJOR:MINOR; return base.map(s => (s + rootIdx) % 12); }
+function getScale(rootIdx, scaleName) { const base = (scaleName === 'major') ? MAJOR : MINOR; return base.map(s => (s + rootIdx) % 12); }
 
-function buildDiatonicPCs(scalePCs, degree, flavorIdx, add7th = false, add9th = false){ 
+function buildDiatonicPCs(scalePCs, degree, flavorIdx, add7th = false, add9th = false) {
   // Get the root note from the scale
-  const rootPC = scalePCs[degree]; 
-  
+  const rootPC = scalePCs[degree];
+
   // Build chord by taking scale degrees: root (0), third (2), fifth (4)
   const chordPCs = [
     scalePCs[degree % 7],                    // root (1st)
     scalePCs[(degree + 2) % 7],              // third (3rd) 
     scalePCs[(degree + 4) % 7]               // fifth (5th)
   ];
-  
+
   // Add 7th if requested (7th scale degree)
   if (add7th) {
     chordPCs.push(scalePCs[(degree + 6) % 7]); // 7th
   }
-  
+
   // Add 9th if requested (2nd scale degree, octave up)
   if (add9th) {
     const ninth = scalePCs[(degree + 1) % 7];
     chordPCs.push(ninth + 12); // 9th (2nd an octave up)
   }
-  
+
   // Sort the notes and apply octave voicing
   let voicedNotes = [...chordPCs];
-  
+
   // Ensure proper octave spacing - if a note is lower than previous, bump it up an octave
   for (let i = 1; i < voicedNotes.length; i++) {
-    while (voicedNotes[i] <= voicedNotes[i-1]) {
+    while (voicedNotes[i] <= voicedNotes[i - 1]) {
       voicedNotes[i] += 12;
     }
   }
-  
+
   return voicedNotes;
 }
 
-function buildFreePCs(rootPC, flavor){ const ints = FREE_CHORDS[flavor] || FREE_CHORDS.major; return ints.map(iv => rootPC + iv); }
+function buildFreePCs(rootPC, flavor) { const ints = FREE_CHORDS[flavor] || FREE_CHORDS.major; return ints.map(iv => rootPC + iv); }
 
 // main poll loop
-function poll(){
+function poll() {
   const pads = navigator.getGamepads ? navigator.getGamepads() : [];
   let usingGamepad = false;
   let gp = null;
-  let gamepadActive = false;
-  
-  // Check for gamepad presence and activity
-  if(pads && gpIndex === null){ 
-    for(let i=0;i<pads.length;i++){ 
-      if(pads[i]){ 
-        gpIndex = i; 
-        gpLed.classList.add('on'); 
-        // Don't change status here - let it be dynamic based on usage
-        break; 
-      } 
-    } 
-  }
-  
-  gp = pads[gpIndex];
-  
-  // Check if gamepad is actively being used (any axis movement or button pressed)
-  if(gp) {
-    const axisThreshold = 0.1;
-    const hasAxisMovement = Math.abs(gp.axes[0]) > axisThreshold || Math.abs(gp.axes[1]) > axisThreshold;
-    const hasButtonPressed = gp.buttons.some(button => button && button.pressed);
-    
-    gamepadActive = hasAxisMovement || hasButtonPressed;
-  } else {
-    // No gamepad detected
-    gpLed.classList.remove('on');
-    if(gpIndex !== null) {
-      statusEl.textContent = 'Using mouse + keyboard';
-      gpIndex = null; // Reset gamepad index
+
+  // FIX 1: gpIndex is now set by the gamepadconnected event listener above.
+  // As a fallback for browsers that fire the event before this code runs,
+  // also scan pads[] once if gpIndex is still null.
+  if (gpIndex === null && pads) {
+    for (let i = 0; i < pads.length; i++) {
+      if (pads[i]) {
+        gpIndex = i;
+        gpLed.classList.add('on');
+        statusEl.textContent = 'Gamepad connected: ' + pads[i].id;
+        if (!audioInitialized && !gamepadAudioPromptShown) showGamepadAudioPrompt();
+        break;
+      }
     }
   }
 
-  // Determine which input to use based on activity, not just presence
-  usingGamepad = gamepadActive && gp;
+  // FIX 2: Retrieve the live pad snapshot. If it's momentarily null (can happen
+  // during rapid reconnects) do NOT reset gpIndex — let the gamepaddisconnected
+  // event handle proper cleanup instead of resetting every poll frame.
+  gp = gpIndex !== null ? pads[gpIndex] : null;
+
+  if (!gp && gpIndex === null) {
+    // Truly no gamepad — ensure LED is off
+    gpLed.classList.remove('on');
+  }
+
+  // FIX 3: usingGamepad should be based on whether a gamepad is PRESENT,
+  // not whether it is actively moving/pressing right now. The old check
+  // (gamepadActive && gp) caused gamepad input to be silently dropped when
+  // the stick was centered or no button was pressed.
+  usingGamepad = !!gp;
 
   // Get input values (from whichever input is active)
-  let rawX=0, rawY=0, adjX=0, adjY=0;
+  let rawX = 0, rawY = 0, adjX = 0, adjY = 0;
   let hold = false, add7th = false, add9th = false, octaveUp = false, octaveDown = false;
-  
-  if(usingGamepad) {
+
+  if (usingGamepad) {
     // read axes using legacy or calibrated (but we default to legacy)
     const legacy = legacyChk.checked;
-    if(legacy){
+    if (legacy) {
       const r = readLegacy(gp); rawX = r.rawX; rawY = r.rawY; adjX = r.adjX; adjY = r.adjY;
     } else {
       // fallback: calibrated axes (if implemented). for now use same legacy mapping if not calibrated.
       const r = readLegacy(gp); rawX = r.rawX; rawY = r.rawY; adjX = r.adjX; adjY = r.adjY;
     }
-    
+
     // Get button states from gamepad
     hold = !!(gp.buttons[7] && gp.buttons[7].pressed);
     add7th = !!(gp.buttons[4] && gp.buttons[4].pressed);
@@ -1636,7 +1654,7 @@ function poll(){
   } else {
     // Use mouse position and keyboard buttons
     rawX = mouseX; rawY = mouseY; adjX = mouseX; adjY = mouseY;
-    
+
     // Get button states from keyboard or touch
     hold = mouseDown || touchDown || keyboardState.space;
     add7th = keyboardState.shift || mobileState.seventh;
@@ -1648,23 +1666,23 @@ function poll(){
   const mag = Math.hypot(adjX, adjY);
 
   // choose mode
-  if(modeSelect.value === 'beginner'){
-    const rootIdx = parseInt(rootSelect.value,10);
+  if (modeSelect.value === 'beginner') {
+    const rootIdx = parseInt(rootSelect.value, 10);
     const scale = getScale(rootIdx, scaleSelect.value);
-    if(mag < DEADZONE){
+    if (mag < DEADZONE) {
       drawWheel(scale, -1, []);
       chordNameEl.textContent = '-';
       statusEl.textContent = '-';
-      if(playing){ stopVoices(); recordOff(lastPlayed); playing=false; lastPlayed=[]; }
+      if (playing) { stopVoices(); recordOff(lastPlayed); playing = false; lastPlayed = []; }
     } else {
-      const {degree, flavor} = mapFirstVariant(adjX, adjY, scale);
-      
+      const { degree, flavor } = mapFirstVariant(adjX, adjY, scale);
+
       // Check if we need to show gamepad audio prompt (for any gamepad activity, not just RT)
       if (usingGamepad && !audioInitialized && !audioInitializing && !gamepadAudioPromptShown) {
         showGamepadAudioPrompt();
         // Still continue to show the wheel and chord name, just don't play sound
       }
-      
+
       // Determine correct chord type based on scale degree
       const scaleName = scaleSelect.value;
       let chordType;
@@ -1675,28 +1693,28 @@ function poll(){
         const minorChordTypes = ['minor', 'diminished', 'Major', 'minor', 'minor', 'Major', 'Major'];
         chordType = minorChordTypes[degree % minorChordTypes.length];
       }
-      
+
       chordNameEl.textContent = NOTE_NAMES[scale[degree]] + ' ' + chordType;
       statusEl.textContent = `Degree:${degree} Type:${chordType}`;
-      
+
       // Calculate octave shift
       let octaveShift = 0;
       if (octaveUp) octaveShift += 1;
       if (octaveDown) octaveShift -= 1;
-      
+
       const pcs = buildDiatonicPCs(scale, degree, flavor, add7th, add9th);
-      
+
       // Update chord name to show extensions
       let extendedChordName = NOTE_NAMES[scale[degree]] + ' ' + chordType;
       if (add7th) extendedChordName += '7';
       if (add9th) extendedChordName += add7th ? '/9' : 'add9';
-      
+
       // Add octave indicator to chord name
       if (octaveShift > 0) extendedChordName += ` (+${octaveShift} oct)`;
       if (octaveShift < 0) extendedChordName += ` (${octaveShift} oct)`;
-      
+
       chordNameEl.textContent = extendedChordName;
-      
+
       // Update status to show extensions, octave, and input method
       let statusText = `Degree:${degree} Type:${chordType}`;
       if (add7th || add9th) {
@@ -1707,31 +1725,31 @@ function poll(){
       if (octaveShift !== 0) {
         statusText += ` Octave:${octaveShift > 0 ? '+' : ''}${octaveShift}`;
       }
-      
+
       // Add input method indicator
       const inputMethod = usingGamepad ? 'Gamepad' : 'Mouse+KB';
       statusText += ` | Input: ${inputMethod}`;
-      
+
       statusEl.textContent = statusText;
-      
+
       // Convert to MIDI notes with proper octave handling including user octave shift
       const midis = pcs.map(pc => {
         const octaveOffset = Math.floor(pc / 12);
         return midiFromPC(pc % 12, BASE_OCTAVE + octaveOffset + octaveShift);
       });
-      
+
       // Always show chord highlighting when RT button is held, regardless of which note we're pointing at
-      if(hold){
+      if (hold) {
         // Draw with chord highlighting - show all notes including extensions
         const highlightPCs = pcs.slice(0, add9th ? 5 : (add7th ? 4 : 3));
         drawWheel(scale, degree, highlightPCs);
-        
-        if(!playing){
+
+        if (!playing) {
           // Initialize audio on first gamepad use if needed
           if (!audioInitialized && !audioInitializing) {
             initAudioOnUserGesture();
           }
-          
+
           // Only prevent starting voices if we're actively initializing audio
           if (audioInitializing) {
             // Skip voice start while initializing
@@ -1739,105 +1757,105 @@ function poll(){
             // Try to start voices, only set playing=true if successful
             const voicesStarted = startVoices(midis);
             if (voicesStarted !== false) {
-              recordOn(midis); 
-              playing = true; 
+              recordOn(midis);
+              playing = true;
               lastPlayed = midis.slice();
             }
           }
         } else {
           // Check if chord has actually changed before morphing to prevent retriggering
-          const chordChanged = lastPlayed.length !== midis.length || 
-                              lastPlayed.some((note, index) => note !== midis[index]);
-          
+          const chordChanged = lastPlayed.length !== midis.length ||
+            lastPlayed.some((note, index) => note !== midis[index]);
+
           if (chordChanged) {
             // Record the chord change: end previous chord and start new one
             if (recording && lastPlayed.length > 0) {
               recordOff(lastPlayed);
             }
-            
+
             // morph only when chord actually changes
             morphVoices(midis);
-            
+
             // Record the new chord
             if (recording) {
               recordOn(midis);
             }
-            
+
             lastPlayed = midis.slice();
           }
         }
       } else {
         // Draw without chord highlighting when not holding A
         drawWheel(scale, degree, []);
-        if(playing){ stopVoices(); recordOff(lastPlayed); playing=false; lastPlayed=[]; }
+        if (playing) { stopVoices(); recordOff(lastPlayed); playing = false; lastPlayed = []; }
       }
     }
   } else { // free mode
     // root override via buttons (0..11) - only for gamepad
-    let rootIdx = parseInt(rootSelect.value,10);
-    if(usingGamepad) {
-      for(let i=0;i<Math.min(gp.buttons.length,12); i++){ if(gp.buttons[i].pressed){ rootIdx = i; rootSelect.value = i; break; } }
+    let rootIdx = parseInt(rootSelect.value, 10);
+    if (usingGamepad) {
+      for (let i = 0; i < Math.min(gp.buttons.length, 12); i++) { if (gp.buttons[i].pressed) { rootIdx = i; rootSelect.value = i; break; } }
     }
     const rootPC = rootIdx % 12;
-    if(mag < DEADZONE){
-      drawWheel(getScale(rootIdx,'major'), -1, []);
+    if (mag < DEADZONE) {
+      drawWheel(getScale(rootIdx, 'major'), -1, []);
       chordNameEl.textContent = '-';
       statusEl.textContent = '-';
-      if(playing){ stopVoices(); recordOff(lastPlayed); playing=false; lastPlayed=[]; }
+      if (playing) { stopVoices(); recordOff(lastPlayed); playing = false; lastPlayed = []; }
     } else {
       const chordKey = mapFreeFirst(adjX, adjY);
       const pcs = buildFreePCs(rootPC, chordKey);
-      
+
       // Calculate octave shift (using unified variables)
       let octaveShift = 0;
       if (octaveUp) octaveShift += 1;
       if (octaveDown) octaveShift -= 1;
-      
+
       // compute midi notes (keep octave logic: root octave BASE_OCTAVE + octave shift)
       const midis = pcs.map(pc => {
         const octaveOffset = Math.floor(pc / 12);
         return midiFromPC(pc % 12, BASE_OCTAVE + octaveOffset + octaveShift);
       });
-      
+
       // Update chord name with octave indicator
       let chordName = NOTE_NAMES[rootPC] + ' ' + chordKey;
       if (octaveShift > 0) chordName += ` (+${octaveShift} oct)`;
       if (octaveShift < 0) chordName += ` (${octaveShift} oct)`;
       chordNameEl.textContent = chordName;
-      drawWheel(getScale(rootIdx,'major'), 0, pcs.slice(0,3));
-      if(hold){
-        if(!playing){ 
+      drawWheel(getScale(rootIdx, 'major'), 0, pcs.slice(0, 3));
+      if (hold) {
+        if (!playing) {
           // Only prevent starting voices if we're actively initializing audio
           if (audioInitializing) {
             // Skip voice start while initializing
           } else {
-            startVoices(midis); recordOn(midis); playing=true; lastPlayed=midis.slice(); 
+            startVoices(midis); recordOn(midis); playing = true; lastPlayed = midis.slice();
           }
         }
-        else { 
+        else {
           // Check if chord has actually changed in free mode
-          const chordChanged = lastPlayed.length !== midis.length || 
-                              lastPlayed.some((note, index) => note !== midis[index]);
-          
+          const chordChanged = lastPlayed.length !== midis.length ||
+            lastPlayed.some((note, index) => note !== midis[index]);
+
           if (chordChanged) {
             // Record the chord change: end previous chord and start new one
             if (recording && lastPlayed.length > 0) {
               recordOff(lastPlayed);
             }
-            
+
             // Update voices
             morphVoices(midis);
-            
+
             // Record the new chord
             if (recording) {
               recordOn(midis);
             }
-            
+
             lastPlayed = midis.slice();
           }
         }
       } else {
-        if(playing){ stopVoices(); recordOff(lastPlayed); playing=false; lastPlayed=[]; }
+        if (playing) { stopVoices(); recordOff(lastPlayed); playing = false; lastPlayed = []; }
       }
     }
   }
@@ -1850,60 +1868,60 @@ requestAnimationFrame(poll);
 
 // ---------- WebMIDI (optional) ----------
 let midiAccess = null, midiOut = null;
-connectMidiBtn.addEventListener('click', async ()=>{
-  if(!navigator.requestMIDIAccess){ alert('WebMIDI not supported in this browser.'); return; }
-  try{
+connectMidiBtn.addEventListener('click', async () => {
+  if (!navigator.requestMIDIAccess) { alert('WebMIDI not supported in this browser.'); return; }
+  try {
     midiAccess = await navigator.requestMIDIAccess();
     const outs = Array.from(midiAccess.outputs.values());
-    if(outs.length){ midiOut = outs[0]; mLed.classList.add('on'); statusEl.textContent = 'WebMIDI connected'; }
+    if (outs.length) { midiOut = outs[0]; mLed.classList.add('on'); statusEl.textContent = 'WebMIDI connected'; }
     else statusEl.textContent = 'No MIDI outputs found';
-    midiAccess.onstatechange = ()=>{};
-  } catch(e){ alert('MIDI error: '+e); }
+    midiAccess.onstatechange = () => { };
+  } catch (e) { alert('MIDI error: ' + e); }
 });
 
 // ---------- Recording controls ----------
-startRecBtn.addEventListener('click', ()=>{
-  recording = true; recEvents = []; recStart = performance.now(); 
-  startRecBtn.disabled = true; stopRecBtn.disabled = false; 
+startRecBtn.addEventListener('click', () => {
+  recording = true; recEvents = []; recStart = performance.now();
+  startRecBtn.disabled = true; stopRecBtn.disabled = false;
   recLed.classList.add('recording');
   statusEl.textContent = 'Recording MIDI...';
 });
-stopRecBtn.addEventListener('click', ()=>{
-  recording = false; startRecBtn.disabled = false; stopRecBtn.disabled = true; 
+stopRecBtn.addEventListener('click', () => {
+  recording = false; startRecBtn.disabled = false; stopRecBtn.disabled = true;
   recLed.classList.remove('recording');
   statusEl.textContent = 'Building MIDI...';
-  if(recEvents.length === 0){ alert('No events recorded'); statusEl.textContent='No events'; return; }
+  if (recEvents.length === 0) { alert('No events recorded'); statusEl.textContent = 'No events'; return; }
   const buf = buildMidiFromEvents(recEvents);
-  const blob = new Blob([buf], {type:'audio/midi'});
+  const blob = new Blob([buf], { type: 'audio/midi' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'chordrack_session.mid'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   statusEl.textContent = 'MIDI ready for download.';
 });
 
 // Audio Recording Event Listeners
-startAudioRecBtn.addEventListener('click', (e)=>{
+startAudioRecBtn.addEventListener('click', (e) => {
   e.preventDefault();
-  
+
   if (!audioInitialized) {
     alert('Please initialize audio first by playing a chord');
     return;
   }
-  
+
   if (!audioCtx || audioCtx.state !== 'running') {
     alert('Audio context not ready. Try playing a chord first.');
     return;
   }
-  
+
   startAudioRecording();
 });
 
-stopAudioRecBtn.addEventListener('click', (e)=>{
+stopAudioRecBtn.addEventListener('click', (e) => {
   e.preventDefault();
   stopAudioRecording();
 });
 
 // quick helper to start with beginner
 modeSelect.value = 'beginner';
-drawWheel(getScale(parseInt(rootSelect.value,10),'major'), -1, []);
+drawWheel(getScale(parseInt(rootSelect.value, 10), 'major'), -1, []);
 
 // that's it
