@@ -2,7 +2,7 @@
 
 A professional-grade interactive chord progression generator with vintage analog aesthetics. Create sophisticated chord progressions using gamepad, mouse, or keyboard controls with real-time synthesis and MIDI export capabilities.
 
-Visit : https://chordrack.pages.dev/ to use ChordRack in browser
+Visit : https://chordrack.com/ to use ChordRack in browser
 
 ## 🎵 Features
 
