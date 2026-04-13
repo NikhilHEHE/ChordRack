@@ -46,7 +46,17 @@
       </label>
 
       <label>Scale:
-        <select id="scaleSelect"><option value="major">Major</option><option value="minor">Minor</option></select>
+        <select id="scaleSelect">
+          <option value="major">Major (Pop, Classical)</option>
+          <option value="minor">Minor (Rock, Emotional)</option>
+          <option value="harmonicMinor">Harmonic Minor (Orchestral)</option>
+          <option value="pentatonicMin">Pentatonic Minor (Hip Hop, R&amp;B)</option>
+          <option value="pentatonicMaj">Pentatonic Major (Pop, Soul)</option>
+          <option value="blues">Blues Scale (Hip Hop, Soul)</option>
+          <option value="phrygian">Phrygian (Trap, Dark Hip Hop)</option>
+          <option value="dorian">Dorian (Neo-Soul, Funk)</option>
+          <option value="mixolydian">Mixolydian (Funk, Rock)</option>
+        </select>
       </label>
 
       <label>Sound:
@@ -69,10 +79,19 @@
 
       <label><input type="checkbox" id="legacyChk" checked style="display:none;"> </label>
 
+      <div class="bpm-widget">
+        <span class="bpm-label">BPM</span>
+        <div class="bpm-controls">
+          <button type="button" class="bpm-btn" id="bpmDown">−</button>
+          <input type="number" id="bpmInput" min="40" max="240" value="120" step="1">
+          <button type="button" class="bpm-btn" id="bpmUp">+</button>
+        </div>
+      </div>
+
       <button id="startRecBtn">Start MIDI Recording</button>
-      <button id="stopRecBtn" disabled>Stop & Download MIDI</button>
+      <button id="stopRecBtn" disabled>Stop &amp; Download MIDI</button>
       <button id="startAudioRecBtn">Start Audio Recording</button>
-      <button id="stopAudioRecBtn" disabled>Stop & Download WAV</button>
+      <button id="stopAudioRecBtn" disabled>Stop &amp; Download WAV</button>
       <button id="connectMidiBtn">(Optional) Connect WebMIDI</button>
     </div>
 

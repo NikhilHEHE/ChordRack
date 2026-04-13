@@ -2,6 +2,20 @@
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const MINOR = [0, 2, 3, 5, 7, 8, 10];
+
+// Extended scales for hip hop, R&B, pop, and other genres
+const SCALES = {
+  major: [0, 2, 4, 5, 7, 9, 11],   // Bright, pop, classical
+  minor: [0, 2, 3, 5, 7, 8, 10],   // Dark, emotional
+  pentatonicMin: [0, 3, 5, 7, 10],          // Hip hop, blues, R&B (5 notes)
+  pentatonicMaj: [0, 2, 4, 7, 9],           // Pop, country, soul (5 notes)
+  blues: [0, 3, 5, 6, 7, 10],       // Hip hop, soul, blues (6 notes)
+  dorian: [0, 2, 3, 5, 7, 9, 10],   // Neo-soul, funk, hip hop
+  mixolydian: [0, 2, 4, 5, 7, 9, 10],   // Funk, pop, rock
+  phrygian: [0, 1, 3, 5, 7, 8, 10],   // Trap, dark hip hop, flamenco
+  harmonicMinor: [0, 2, 3, 5, 7, 8, 11],   // Dramatic, orchestral hip hop
+};
+
 const FLAVORS = [
   { name: 'Triad', intervals: [0, 4, 7] },
   { name: '7th', intervals: [0, 4, 7, 10] },
@@ -26,6 +40,7 @@ const stopRecBtn = document.getElementById('stopRecBtn');
 const startAudioRecBtn = document.getElementById('startAudioRecBtn');
 const stopAudioRecBtn = document.getElementById('stopAudioRecBtn');
 const connectMidiBtn = document.getElementById('connectMidiBtn');
+const bpmInput = document.getElementById('bpmInput');
 const gpLed = document.getElementById('gpLed');
 const mLed = document.getElementById('mLed');
 const recLed = document.getElementById('recLed');
@@ -204,6 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // BPM widget buttons
+  document.getElementById('bpmDown').addEventListener('click', () => {
+    bpmInput.value = Math.max(40, parseInt(bpmInput.value, 10) - 1);
+  });
+  document.getElementById('bpmUp').addEventListener('click', () => {
+    bpmInput.value = Math.min(240, parseInt(bpmInput.value, 10) + 1);
+  });
 });
 
 // Mouse and keyboard event listeners
@@ -1390,12 +1413,9 @@ function drawWheel(scalePCs, activeIdx, activeChordPCs = []) {
     const romanX = cx + Math.cos(midAngle) * romanRadius;
     const romanY = cy + Math.sin(midAngle) * romanRadius;
 
-    // Roman numerals for chord degrees - consistent uppercase format
-    const currentScale = scaleSelect.value; // Get current scale (major/minor)
-    const majorRomanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-    const minorRomanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-
-    const romanNumeral = currentScale === 'major' ? majorRomanNumerals[i] : minorRomanNumerals[i];
+    // Roman numerals for chord degrees — works for 5, 6, or 7-note scales
+    const allRomanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+    const romanNumeral = allRomanNumerals[i] !== undefined ? allRomanNumerals[i] : (i + 1).toString();
     const noteName = NOTE_NAMES[scalePCs[i] % 12];
 
     wctx.save();
@@ -1557,34 +1577,45 @@ function mapFreeFirst(adjX, adjY) {
 }
 
 // diatonic helpers
-function getScale(rootIdx, scaleName) { const base = (scaleName === 'major') ? MAJOR : MINOR; return base.map(s => (s + rootIdx) % 12); }
+function getScale(rootIdx, scaleName) {
+  const base = SCALES[scaleName] || SCALES.major;
+  return base.map(s => (s + rootIdx) % 12);
+}
 
 function buildDiatonicPCs(scalePCs, degree, flavorIdx, add7th = false, add9th = false) {
-  // Get the root note from the scale
-  const rootPC = scalePCs[degree];
+  const len = scalePCs.length;
 
-  // Build chord by taking scale degrees: root (0), third (2), fifth (4)
+  // For scales shorter than 7 notes (pentatonic = 5, blues = 6),
+  // the stepping intervals are adapted so chords always use real scale tones.
+  // We pick: root, a note ~2 steps up, a note ~4 steps up (wrapping within scale).
+  // This guarantees we never produce undefined note values.
+  const step2 = Math.round(len * 2 / 7); // ≈ 2 for 7-note, 1-2 for shorter
+  const step4 = Math.round(len * 4 / 7); // ≈ 4 for 7-note, 2-3 for shorter
+  const step6 = Math.round(len * 6 / 7); // ≈ 6 for 7-note, 4-5 for shorter
+  const step1 = Math.max(1, Math.round(len * 1 / 7)); // for 9th
+
   const chordPCs = [
-    scalePCs[degree % 7],                    // root (1st)
-    scalePCs[(degree + 2) % 7],              // third (3rd) 
-    scalePCs[(degree + 4) % 7]               // fifth (5th)
+    scalePCs[degree % len],                        // root
+    scalePCs[(degree + step2) % len],              // 3rd equivalent
+    scalePCs[(degree + step4) % len]               // 5th equivalent
   ];
 
-  // Add 7th if requested (7th scale degree)
+  // Add 7th if requested
   if (add7th) {
-    chordPCs.push(scalePCs[(degree + 6) % 7]); // 7th
+    chordPCs.push(scalePCs[(degree + step6) % len]);
   }
 
-  // Add 9th if requested (2nd scale degree, octave up)
+  // Add 9th if requested (2nd scale degree, an octave up)
   if (add9th) {
-    const ninth = scalePCs[(degree + 1) % 7];
-    chordPCs.push(ninth + 12); // 9th (2nd an octave up)
+    const ninth = scalePCs[(degree + step1) % len];
+    if (ninth !== undefined) chordPCs.push(ninth + 12);
   }
 
-  // Sort the notes and apply octave voicing
-  let voicedNotes = [...chordPCs];
+  // Safety: drop any undefined entries (shouldn't happen now, but just in case)
+  const validNotes = chordPCs.filter(n => n !== undefined && !isNaN(n));
 
-  // Ensure proper octave spacing - if a note is lower than previous, bump it up an octave
+  // Ensure proper octave spacing
+  let voicedNotes = [...validNotes];
   for (let i = 1; i < voicedNotes.length; i++) {
     while (voicedNotes[i] <= voicedNotes[i - 1]) {
       voicedNotes[i] += 12;
@@ -1916,11 +1947,14 @@ stopRecBtn.addEventListener('click', () => {
   recLed.classList.remove('recording');
   statusEl.textContent = 'Building MIDI...';
   if (recEvents.length === 0) { alert('No events recorded'); statusEl.textContent = 'No events'; return; }
-  const buf = buildMidiFromEvents(recEvents);
+  // Convert user BPM to microseconds per beat (MIDI tempo)
+  const bpm = Math.max(40, Math.min(240, parseInt(bpmInput.value, 10) || 120));
+  const tempoUs = Math.round(60000000 / bpm); // µs per beat
+  const buf = buildMidiFromEvents(recEvents, { tpq: TPQ, tempo: tempoUs });
   const blob = new Blob([buf], { type: 'audio/midi' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'chordrack_session.mid'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  statusEl.textContent = 'MIDI ready for download.';
+  statusEl.textContent = `MIDI ready (${bpm} BPM).`;
 });
 
 // Audio Recording Event Listeners
